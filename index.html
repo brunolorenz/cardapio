@@ -491,7 +491,7 @@ header h1 em { color: var(--accent); font-style: normal; }
 <div id="main-app" style="display:none">
   <header>
     <h1>Cardápio &amp; <em>Compras</em></h1>
-    <span class="subtitle">vegetariano · duas pessoas</span>
+    <span class="subtitle" id="last-updated">—</span>
   </header>
 
   <div class="status-bar">
@@ -654,6 +654,23 @@ let gistFileName = 'cardapio-data.json';
 
 const DEFAULT_CATS_PRATOS  = ['Básicos','Massas','Sopas','Saladas','Assados','Lanches','Acompanhamentos','Doces'];
 const DEFAULT_CATS_COMPRAS = ['Hortifrúti','Grãos e cereais','Laticínios/Ovos','Padaria','Conservas','Temperos','Bebidas','Limpeza','Higiene','Outros'];
+
+function renderLastUpdated(){
+  const el = document.getElementById('last-updated');
+  if(!el) return;
+  if(!state.last_updated){ el.textContent = 'nunca salvo'; return; }
+  const d = new Date(state.last_updated);
+  const hoje = new Date();
+  const isHoje = d.toDateString() === hoje.toDateString();
+  const ontem = new Date(hoje); ontem.setDate(hoje.getDate()-1);
+  const isOntem = d.toDateString() === ontem.toDateString();
+  const hora = d.toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'});
+  let prefixo;
+  if(isHoje)       prefixo = 'hoje';
+  else if(isOntem) prefixo = 'ontem';
+  else             prefixo = d.toLocaleDateString('pt-BR', {day:'2-digit', month:'2-digit', year:'numeric'});
+  el.textContent = `atualizado ${prefixo} às ${hora}`;
+}
 let weekOffset = 0;
 let editingPratoId = null;
 
@@ -791,6 +808,7 @@ async function gistLoad(){
       : PRATOS_INICIAIS.map(p=>({...p, id:uid()}));
     state.cats_pratos  = (parsed.cats_pratos  && parsed.cats_pratos.length)  ? parsed.cats_pratos  : [...DEFAULT_CATS_PRATOS];
     state.cats_compras = (parsed.cats_compras && parsed.cats_compras.length) ? parsed.cats_compras : [...DEFAULT_CATS_COMPRAS];
+    state.last_updated = parsed.last_updated || null;
     setDot('ok','Gist conectado');
   }catch(e){
     setDot('err',`erro: ${e.message}`);
@@ -802,6 +820,7 @@ async function gistLoad(){
 }
 
 async function gistSave(){
+  state.last_updated = new Date().toISOString();
   document.querySelectorAll('.btn-save').forEach(b=>b.disabled=true);
   setDot('spin','salvando...');
   try{
@@ -812,6 +831,7 @@ async function gistSave(){
     });
     if(!r.ok) throw new Error('HTTP '+r.status);
     setDot('ok','salvo ✓');
+    renderLastUpdated();
   }catch(e){
     setDot('err',`erro ao salvar: ${e.message}`);
     alert('Erro ao salvar no Gist: '+e.message);
@@ -1176,6 +1196,7 @@ async function init(){
   await gistLoad();
   populateSelects();
   renderConfig();
+  renderLastUpdated();
   renderDays();
 }
 
