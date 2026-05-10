@@ -232,26 +232,27 @@ header h1 em { color: var(--accent); font-style: normal; }
 .overlay {
   position: fixed; inset: 0;
   background: rgba(24,24,27,.4);
-  display: flex; align-items: flex-end; justify-content: center;
+  display: flex; align-items: flex-start; justify-content: center;
   z-index: 200; opacity: 0; pointer-events: none; transition: opacity .2s;
 }
 .overlay.open { opacity: 1; pointer-events: all; }
 .modal {
   background: var(--surface);
-  border-radius: 16px 16px 0 0;
-  border-top: 1.5px solid var(--border);
+  border-radius: 0 0 16px 16px;
+  border-bottom: 1.5px solid var(--border);
   width: 100%; max-width: 640px;
   max-height: 90vh; display: flex; flex-direction: column;
-  transform: translateY(100%); transition: transform .25s cubic-bezier(.4,0,.2,1);
+  transform: translateY(-100%); transition: transform .25s cubic-bezier(.4,0,.2,1);
 }
 .overlay.open .modal { transform: translateY(0); }
 
-/* drag handle */
-.modal::before {
+/* drag handle — agora em baixo */
+.modal::after {
   content: ''; display: block; width: 40px; height: 4px;
   background: var(--border); border-radius: 2px;
-  margin: .75rem auto .25rem; flex-shrink: 0;
+  margin: .5rem auto .75rem; flex-shrink: 0;
 }
+.modal::before { display: none; }
 .modal-head {
   padding: .5rem 1.25rem .85rem;
   display: flex; justify-content: space-between; align-items: center;
@@ -445,6 +446,65 @@ header h1 em { color: var(--accent); font-style: normal; }
   border-radius: 2px;
   margin: .85rem auto .25rem;
 }
+
+/* ── Impressão ¼ A4 ─────────────────── */
+@media print {
+  /* Tudo escondido exceto a folha de impressão */
+  body > *,
+  .app > * { display: none !important; }
+
+  #print-sheet {
+    display: block !important;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-size: 8pt;
+    line-height: 1.4;
+    color: #000;
+    background: #fff;
+    width: 105mm;   /* ¼ de A4 (210mm / 2) */
+    padding: 6mm;
+    margin: 0;
+  }
+
+  #print-sheet h1 {
+    font-size: 10pt; font-weight: 700;
+    border-bottom: 1.5pt solid #000;
+    padding-bottom: 2mm; margin-bottom: 3mm;
+    letter-spacing: -.02em;
+  }
+  #print-sheet h2 {
+    font-size: 7pt; font-weight: 700;
+    text-transform: uppercase; letter-spacing: .07em;
+    margin: 3mm 0 1.5mm; color: #444;
+  }
+  #print-sheet .p-week {
+    font-size: 7pt; color: #555; margin-bottom: 3mm;
+  }
+  #print-sheet .p-day { margin-bottom: 2.5mm; }
+  #print-sheet .p-day-name {
+    font-size: 8pt; font-weight: 700;
+    border-bottom: .5pt solid #ccc;
+    padding-bottom: .8mm; margin-bottom: 1mm;
+  }
+  #print-sheet .p-slot { display: flex; gap: 2mm; font-size: 7.5pt; padding: .4mm 0; }
+  #print-sheet .p-slot-lbl { color: #888; flex-shrink: 0; width: 10mm; }
+  #print-sheet .p-slot-val { flex: 1; }
+  #print-sheet .p-divider {
+    border: none; border-top: 1pt solid #000;
+    margin: 3mm 0;
+  }
+  #print-sheet .p-cat { margin-bottom: 2mm; }
+  #print-sheet .p-cat-name {
+    font-size: 7pt; font-weight: 700;
+    text-transform: uppercase; letter-spacing: .06em;
+    color: #444; margin-bottom: .8mm;
+  }
+  #print-sheet .p-item { display: flex; justify-content: space-between; padding: .3mm 0; border-bottom: .3pt dotted #ccc; font-size: 7.5pt; }
+  #print-sheet .p-item-qty { color: #555; margin-left: 2mm; }
+  #print-sheet .p-empty { color: #aaa; font-size: 7pt; font-style: italic; }
+}
+
+/* O sheet fica invisível na tela */
+#print-sheet { display: none; }
 </style>
 </head>
 <body>
@@ -541,7 +601,7 @@ header h1 em { color: var(--accent); font-style: normal; }
         </div>
         <button class="btn-full" id="btn-add-shop">+ Adicionar</button>
         <div class="side-foot">
-          <button class="btn-ghost" onclick="window.print()">🖨 Imprimir</button>
+          <button class="btn-ghost" id="btn-print">🖨 Imprimir cardápio + lista</button>
         </div>
       </div>
     </div>
@@ -616,6 +676,9 @@ header h1 em { color: var(--accent); font-style: normal; }
   </div>
 
 </div><!-- /app -->
+
+  <!-- folha de impressão — invisível na tela, aparece só no print -->
+  <div id="print-sheet"></div>
 
 </div><!-- /main-app -->
 <div class="overlay" id="overlay">
@@ -1184,6 +1247,61 @@ document.getElementById('btn-add-cat-prato').onclick  = ()=> addCat('pratos');
 document.getElementById('btn-add-cat-compra').onclick = ()=> addCat('compras');
 document.getElementById('new-cat-prato').onkeydown    = e=>{ if(e.key==='Enter') addCat('pratos'); };
 document.getElementById('new-cat-compra').onkeydown   = e=>{ if(e.key==='Enter') addCat('compras'); };
+
+// ─ Impressão ──────────────────────────────
+function buildPrintSheet(){
+  const cardapio = getCardapio();
+  const compras  = getCompras();
+  const dates    = weekDates();
+
+  const tag = weekOffset===0?'Esta semana':weekOffset===1?'Próxima semana':weekOffset===-1?'Semana passada':'';
+  const periodo = (tag?tag+' · ':'')+fmtD(dates[0])+' – '+fmtD(dates[6]);
+
+  // ── Cardápio ──
+  const diasHTML = DAYS.map((day,i)=>{
+    const slots = cardapio[day.key]||{almoco:null,janta:null};
+    const almoco = slots.almoco ? esc(slots.almoco.nome) : '<span class="p-empty">—</span>';
+    const janta  = slots.janta  ? esc(slots.janta.nome)  : '<span class="p-empty">—</span>';
+    return `<div class="p-day">
+      <div class="p-day-name">${esc(day.label)} <span style="font-weight:400;color:#666">${fmtD(dates[i])}</span></div>
+      <div class="p-slot"><span class="p-slot-lbl">Almoço</span><span class="p-slot-val">${almoco}</span></div>
+      <div class="p-slot"><span class="p-slot-lbl">Janta</span><span class="p-slot-val">${janta}</span></div>
+    </div>`;
+  }).join('');
+
+  // ── Compras agrupadas ──
+  let comprasHTML = '';
+  if(!compras.length){
+    comprasHTML = '<p class="p-empty">Lista vazia</p>';
+  } else {
+    const cats = {};
+    compras.forEach(it=>{ if(!cats[it.cat]) cats[it.cat]=[]; cats[it.cat].push(it); });
+    comprasHTML = Object.entries(cats).map(([cat,items])=>
+      `<div class="p-cat">
+        <div class="p-cat-name">${esc(cat)}</div>
+        ${items.map(it=>`<div class="p-item">
+          <span>${esc(it.nome)}</span>
+          ${it.qty?`<span class="p-item-qty">${esc(it.qty)}</span>`:''}
+        </div>`).join('')}
+      </div>`
+    ).join('');
+  }
+
+  document.getElementById('print-sheet').innerHTML = `
+    <h1>Cardápio &amp; Compras</h1>
+    <p class="p-week">${periodo}</p>
+    <h2>Cardápio da semana</h2>
+    ${diasHTML}
+    <hr class="p-divider">
+    <h2>Lista de compras</h2>
+    ${comprasHTML}
+  `;
+}
+
+document.getElementById('btn-print').onclick = ()=>{
+  buildPrintSheet();
+  window.print();
+};
 
 // ─ Init ───────────────────────────────────
 async function init(){
