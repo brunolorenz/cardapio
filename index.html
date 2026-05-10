@@ -418,6 +418,33 @@ header h1 em { color: var(--accent); font-style: normal; }
 }
 
 .empty { color: var(--ink3); font-size: .85rem; padding: .5rem 0; }
+
+/* ── Config sheet ───────────────────── */
+#panel-config {
+  display: block;
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  z-index: 45;
+  background: var(--surface);
+  border-top: 1.5px solid var(--border);
+  border-radius: 16px 16px 0 0;
+  max-height: 80vh;
+  overflow-y: auto;
+  transform: translateY(100%);
+  transition: transform .28s cubic-bezier(.4,0,.2,1);
+  padding-bottom: 5rem;
+}
+#panel-config.config-open {
+  transform: translateY(0);
+}
+#panel-config::before {
+  content: '';
+  display: block;
+  width: 40px; height: 4px;
+  background: var(--border);
+  border-radius: 2px;
+  margin: .85rem auto .25rem;
+}
 </style>
 </head>
 <body>
@@ -478,7 +505,6 @@ header h1 em { color: var(--accent); font-style: normal; }
     <button class="tab active" data-tab="cardapio">📋 Cardápio</button>
     <button class="tab" data-tab="compras">🛒 Compras</button>
     <button class="tab" data-tab="pratos">🍽 Pratos</button>
-    <button class="tab" data-tab="config">⚙ Config</button>
   </div>
 
   <!-- ── CARDÁPIO ── -->
@@ -592,6 +618,17 @@ header h1 em { color: var(--accent); font-style: normal; }
   </div>
 
 </div><!-- /app -->
+
+  <!-- ── Rodapé fixo ── -->
+  <div style="position:fixed;bottom:0;left:0;right:0;z-index:40;background:var(--surface);border-top:1px solid var(--border);display:flex;justify-content:center;padding:.65rem 1.25rem">
+    <div style="width:100%;max-width:640px;display:flex;justify-content:flex-end">
+      <button class="tab" data-tab="config" id="footer-config-btn"
+        style="border-bottom:none;padding:.4rem .85rem;border-radius:var(--r-sm);color:var(--ink3);font-size:.78rem">
+        ⚙ Configurar
+      </button>
+    </div>
+  </div>
+
 </div><!-- /main-app -->
 <div class="overlay" id="overlay">
   <div class="modal">
@@ -1053,13 +1090,25 @@ document.getElementById('prato-cat-filter').onchange=renderPratos;
 // ─ Tabs & nav ─────────────────────────────
 document.querySelectorAll('.tab').forEach(btn=>{
   btn.onclick=()=>{
-    document.querySelectorAll('.tab').forEach(b=>b.classList.remove('active'));
-    document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+    // se for o botão de config do rodapé, abre/fecha o painel config
+    if(btn.dataset.tab==='config'){
+      const panel = document.getElementById('panel-config');
+      const isOpen = panel.classList.contains('config-open');
+      panel.classList.toggle('config-open', !isOpen);
+      btn.classList.toggle('active', !isOpen);
+      if(!isOpen) renderConfig();
+      return;
+    }
+    // fecha config se estiver aberto
+    document.getElementById('panel-config').classList.remove('config-open');
+    document.getElementById('footer-config-btn').classList.remove('active');
+    // navegação normal
+    document.querySelectorAll('.tab:not(#footer-config-btn)').forEach(b=>b.classList.remove('active'));
+    document.querySelectorAll('.panel:not(#panel-config)').forEach(p=>p.classList.remove('active'));
     btn.classList.add('active');
     document.getElementById('panel-'+btn.dataset.tab).classList.add('active');
     if(btn.dataset.tab==='compras') renderShop();
     if(btn.dataset.tab==='pratos')  renderPratos();
-    if(btn.dataset.tab==='config')  renderConfig();
   };
 });
 
