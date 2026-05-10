@@ -1,0 +1,1096 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cardápio & Compras</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* ── Tokens ─────────────────────────── */
+:root {
+  --bg:       #f7f6f3;
+  --surface:  #ffffff;
+  --raised:   #f0efe9;
+  --border:   #e2e0d8;
+  --ink:      #18181b;
+  --ink2:     #52525b;
+  --ink3:     #a1a1aa;
+  --accent:   #2563eb;   /* blue — action color */
+  --accent-bg:#eff6ff;
+  --danger:   #dc2626;
+  --danger-bg:#fef2f2;
+  --green:    #16a34a;
+  --green-bg: #f0fdf4;
+  --r:        10px;
+  --r-sm:     6px;
+}
+
+/* ── Reset ───────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 16px;
+  line-height: 1.5;
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Layout ─────────────────────────── */
+.app { max-width: 640px; margin: 0 auto; padding: 0 0 7rem; }
+
+/* ── Header ─────────────────────────── */
+header {
+  padding: 1.5rem 1.25rem 1.25rem;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+header h1 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: -.03em;
+  color: var(--ink);
+  line-height: 1.1;
+}
+header h1 em { color: var(--accent); font-style: normal; }
+.subtitle {
+  font-size: .8rem;
+  color: var(--ink3);
+  margin-top: .2rem;
+  font-weight: 400;
+}
+
+/* ── Status bar ─────────────────────── */
+.status-bar {
+  display: flex; align-items: center; gap: .5rem;
+  padding: .55rem 1.25rem;
+  font-size: .75rem; color: var(--ink3);
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+.dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--ink3); display: inline-block; margin-right: .25rem;
+  transition: background .3s; flex-shrink: 0;
+}
+.dot.ok   { background: var(--green); }
+.dot.err  { background: var(--danger); }
+.dot.spin { background: #d97706; animation: blink .9s infinite; }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:.2} }
+
+/* ── Tabs ───────────────────────────── */
+.tabs {
+  display: grid; grid-template-columns: repeat(3, 1fr);
+  background: var(--surface);
+  border-bottom: 2px solid var(--border);
+  position: sticky; top: 0; z-index: 50;
+}
+.tab {
+  background: none; border: none;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: .82rem; font-weight: 600;
+  padding: .85rem .5rem;
+  cursor: pointer; color: var(--ink3);
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  transition: color .15s, border-color .15s;
+  text-align: center; white-space: nowrap;
+}
+.tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+.panel { display: none; }
+.panel.active { display: block; }
+
+/* ── Section ────────────────────────── */
+.section { padding: 1.25rem; }
+
+/* ── Week bar ───────────────────────── */
+.week-bar {
+  display: flex; align-items: center; gap: .5rem;
+  margin-bottom: 1.25rem;
+}
+.nav-btn {
+  background: var(--surface); border: 1.5px solid var(--border);
+  color: var(--ink2); width: 38px; height: 38px;
+  border-radius: var(--r-sm); cursor: pointer; font-size: 1rem;
+  display: flex; align-items: center; justify-content: center;
+  transition: border-color .15s;
+  flex-shrink: 0;
+}
+.nav-btn:active { border-color: var(--accent); color: var(--accent); }
+#week-label {
+  flex: 1; text-align: center;
+  font-size: .85rem; font-weight: 600; color: var(--ink2);
+}
+
+/* ── Buttons ────────────────────────── */
+.btn-save {
+  background: var(--accent); color: #fff;
+  border: none; border-radius: var(--r-sm);
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: .8rem; font-weight: 600;
+  padding: .55rem 1rem; cursor: pointer;
+  white-space: nowrap; transition: opacity .15s;
+}
+.btn-save:active { opacity: .8; }
+.btn-save:disabled { opacity: .35; cursor: default; }
+
+.btn-full {
+  background: var(--accent); color: #fff;
+  border: none; border-radius: var(--r-sm);
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: .9rem; font-weight: 600;
+  padding: .8rem 1rem; cursor: pointer; width: 100%;
+  margin-top: .25rem; transition: opacity .15s;
+}
+.btn-full:active { opacity: .85; }
+
+.btn-green {
+  background: var(--green); color: #fff;
+  border: none; border-radius: var(--r-sm);
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: .82rem; font-weight: 600;
+  padding: .6rem 1rem; cursor: pointer; transition: opacity .15s;
+}
+.btn-green:active { opacity: .85; }
+
+.btn-ghost {
+  background: var(--surface); border: 1.5px solid var(--border);
+  border-radius: var(--r-sm);
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: .8rem; font-weight: 500;
+  padding: .55rem .9rem; cursor: pointer;
+  color: var(--ink2); transition: border-color .15s;
+}
+.btn-ghost:active { border-color: var(--ink2); }
+
+/* ── Days ───────────────────────────── */
+.days-grid { display: flex; flex-direction: column; gap: .65rem; }
+
+.day-card {
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: var(--r);
+  overflow: hidden;
+}
+.day-head {
+  display: flex; align-items: center; gap: .75rem;
+  padding: .7rem 1rem;
+  background: var(--raised);
+  border-bottom: 1.5px solid var(--border);
+}
+.day-ini {
+  width: 32px; height: 32px; border-radius: 50%;
+  background: var(--accent); color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 700; font-size: .85rem; flex-shrink: 0;
+}
+.day-name { font-size: .95rem; font-weight: 700; color: var(--ink); }
+.day-date { font-size: .75rem; color: var(--ink3); margin-left: auto; font-weight: 400; }
+
+.meal-slot {
+  padding: .7rem 1rem;
+  border-bottom: 1px solid var(--border);
+}
+.meal-slot:last-child { border-bottom: none; }
+.slot-lbl {
+  font-size: .68rem; font-weight: 700;
+  letter-spacing: .07em; text-transform: uppercase;
+  color: var(--ink3); margin-bottom: .4rem;
+}
+
+.meal-chip {
+  display: flex; align-items: center; gap: .5rem;
+  background: var(--accent-bg);
+  border: 1.5px solid #bfdbfe;
+  border-radius: var(--r-sm); padding: .5rem .75rem;
+  cursor: pointer; transition: border-color .15s;
+}
+.meal-chip:active { border-color: var(--accent); }
+.chip-name { flex: 1; font-size: .9rem; font-weight: 500; color: var(--ink); }
+.chip-del {
+  background: none; border: none; cursor: pointer;
+  color: var(--ink3); font-size: 1.1rem;
+  width: 28px; height: 28px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 50%; transition: background .12s, color .12s;
+}
+.chip-del:active { background: var(--danger-bg); color: var(--danger); }
+
+.add-btn {
+  width: 100%; background: none;
+  border: 1.5px dashed var(--border); border-radius: var(--r-sm);
+  color: var(--ink3); font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: .85rem; font-weight: 500;
+  padding: .55rem .75rem; cursor: pointer;
+  text-align: left; transition: border-color .15s, color .15s;
+}
+.add-btn:active { border-color: var(--accent); color: var(--accent); }
+
+/* ── Modal ──────────────────────────── */
+.overlay {
+  position: fixed; inset: 0;
+  background: rgba(24,24,27,.4);
+  display: flex; align-items: flex-end; justify-content: center;
+  z-index: 200; opacity: 0; pointer-events: none; transition: opacity .2s;
+}
+.overlay.open { opacity: 1; pointer-events: all; }
+.modal {
+  background: var(--surface);
+  border-radius: 16px 16px 0 0;
+  border-top: 1.5px solid var(--border);
+  width: 100%; max-width: 640px;
+  max-height: 90vh; display: flex; flex-direction: column;
+  transform: translateY(100%); transition: transform .25s cubic-bezier(.4,0,.2,1);
+}
+.overlay.open .modal { transform: translateY(0); }
+
+/* drag handle */
+.modal::before {
+  content: ''; display: block; width: 40px; height: 4px;
+  background: var(--border); border-radius: 2px;
+  margin: .75rem auto .25rem; flex-shrink: 0;
+}
+.modal-head {
+  padding: .5rem 1.25rem .85rem;
+  display: flex; justify-content: space-between; align-items: center;
+  border-bottom: 1px solid var(--border);
+}
+.modal-head h2 { font-size: 1rem; font-weight: 700; color: var(--ink); }
+.modal-x {
+  background: var(--raised); border: none; border-radius: 50%;
+  width: 30px; height: 30px; font-size: .85rem; cursor: pointer;
+  color: var(--ink2); display: flex; align-items: center; justify-content: center;
+}
+.modal-search { padding: .85rem 1.25rem; border-bottom: 1px solid var(--border); }
+.modal-search input {
+  width: 100%; background: var(--bg); border: 1.5px solid var(--border);
+  border-radius: var(--r-sm); font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: .95rem; padding: .65rem .9rem; outline: none; color: var(--ink);
+}
+.modal-search input:focus { border-color: var(--accent); }
+.modal-search input::placeholder { color: var(--ink3); }
+.modal-body { overflow-y: auto; }
+.mcat {
+  font-size: .68rem; font-weight: 700; letter-spacing: .09em;
+  text-transform: uppercase; color: var(--ink3);
+  padding: .9rem 1.25rem .35rem;
+  position: sticky; top: 0; background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+.dish-row {
+  padding: .85rem 1.25rem; cursor: pointer;
+  border-bottom: 1px solid var(--border); transition: background .1s;
+}
+.dish-row:active { background: var(--accent-bg); }
+.dish-nm { font-size: .95rem; font-weight: 600; color: var(--ink); margin-bottom: .15rem; }
+.dish-ing { font-size: .78rem; color: var(--ink3); line-height: 1.55; }
+.empty-modal { color: var(--ink3); font-size: .85rem; padding: 1.5rem 1.25rem; }
+
+/* ── Shopping ───────────────────────── */
+.shop-toolbar {
+  display: flex; align-items: center; gap: .5rem;
+  margin-bottom: 1.25rem; flex-wrap: wrap;
+}
+.shop-prog { font-size: .8rem; color: var(--ink3); font-weight: 500; margin-left: auto; }
+
+.cat-block { margin-bottom: 1.5rem; }
+.cat-lbl {
+  font-size: .68rem; font-weight: 700; letter-spacing: .09em;
+  text-transform: uppercase; color: var(--ink3);
+  padding-bottom: .45rem; border-bottom: 1.5px solid var(--border);
+  margin-bottom: .5rem;
+}
+.si {
+  display: flex; align-items: center; gap: .75rem;
+  padding: .65rem 0; border-bottom: 1px solid var(--border);
+}
+.si:last-child { border-bottom: none; }
+.si-check {
+  width: 22px; height: 22px; border: 2px solid var(--border);
+  border-radius: 6px; cursor: pointer; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: .7rem; transition: all .15s; background: var(--surface);
+  color: transparent;
+}
+.si-check.on { background: var(--green); border-color: var(--green); color: #fff; }
+.si-name { flex: 1; font-size: .95rem; font-weight: 500; color: var(--ink); }
+.si-name.on { text-decoration: line-through; color: var(--ink3); font-weight: 400; }
+.si-qty {
+  font-size: .72rem; color: var(--ink3); font-weight: 500;
+  background: var(--raised); border-radius: 4px;
+  padding: .2rem .5rem; white-space: nowrap;
+}
+.si-del {
+  background: none; border: none; cursor: pointer;
+  color: var(--ink3); font-size: .9rem;
+  width: 30px; height: 30px; display: flex; align-items: center; justify-content: center;
+  border-radius: var(--r-sm); transition: color .15s, background .15s;
+}
+.si-del:active { color: var(--danger); background: var(--danger-bg); }
+
+/* ── Forms ──────────────────────────── */
+.form-divider {
+  border: none; border-top: 6px solid var(--bg);
+  margin: 1.5rem -1.25rem;
+}
+.side-panel h3 {
+  font-size: 1.05rem; font-weight: 700;
+  color: var(--ink); margin-bottom: 1.1rem;
+}
+.field { margin-bottom: .85rem; }
+.field label {
+  display: block; font-size: .72rem; font-weight: 700;
+  letter-spacing: .05em; text-transform: uppercase;
+  color: var(--ink2); margin-bottom: .35rem;
+}
+.field input, .field select, .field textarea {
+  width: 100%; background: var(--surface);
+  border: 1.5px solid var(--border); border-radius: var(--r-sm);
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: .95rem; color: var(--ink);
+  padding: .65rem .85rem; outline: none; resize: none; appearance: none;
+}
+.field input:focus, .field select:focus, .field textarea:focus {
+  border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-bg);
+}
+.field input::placeholder, .field textarea::placeholder { color: var(--ink3); }
+.field textarea { min-height: 100px; line-height: 1.65; }
+.side-foot {
+  display: flex; justify-content: flex-end; gap: .5rem;
+  flex-wrap: wrap; margin-top: .75rem;
+}
+
+/* ── Pratos ─────────────────────────── */
+.pratos-toolbar { display: flex; gap: .5rem; margin-bottom: 1.25rem; flex-wrap: wrap; }
+.prato-filter {
+  background: var(--surface); border: 1.5px solid var(--border);
+  border-radius: var(--r-sm); font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: .9rem; color: var(--ink);
+  padding: .6rem .85rem; outline: none; flex: 1;
+}
+.prato-filter:focus { border-color: var(--accent); }
+.prato-filter::placeholder { color: var(--ink3); }
+
+.prato-list { display: flex; flex-direction: column; gap: .6rem; }
+.prato-card {
+  background: var(--surface); border: 1.5px solid var(--border);
+  border-radius: var(--r); padding: .9rem 1rem;
+  display: flex; gap: .75rem; align-items: flex-start;
+}
+.prato-card.editing {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-bg);
+}
+.prato-info { flex: 1; min-width: 0; }
+.prato-nome { font-size: .95rem; font-weight: 700; color: var(--ink); margin-bottom: .25rem; }
+.prato-cat-tag {
+  display: inline-block; font-size: .65rem; font-weight: 700;
+  letter-spacing: .06em; text-transform: uppercase;
+  background: var(--raised); border-radius: 4px;
+  padding: .15rem .45rem; color: var(--ink3); margin-bottom: .35rem;
+}
+.prato-ings { font-size: .8rem; color: var(--ink3); line-height: 1.65; font-weight: 400; }
+.prato-actions { display: flex; flex-direction: column; gap: .3rem; flex-shrink: 0; }
+.prato-actions button {
+  background: var(--raised); border: 1.5px solid var(--border);
+  border-radius: var(--r-sm); font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: .72rem; font-weight: 600;
+  padding: .35rem .65rem; cursor: pointer;
+  color: var(--ink2); transition: all .12s; white-space: nowrap;
+}
+.prato-actions button:active { border-color: var(--accent); color: var(--accent); }
+.prato-actions .btn-del:active { border-color: var(--danger); color: var(--danger); background: var(--danger-bg); }
+
+.hint {
+  font-size: .8rem; color: var(--ink2); line-height: 1.65;
+  padding: .65rem .85rem;
+  background: var(--accent-bg);
+  border-left: 3px solid var(--accent);
+  border-radius: 0 var(--r-sm) var(--r-sm) 0;
+  margin-bottom: .65rem;
+}
+.hint code {
+  background: #fff; border: 1px solid #bfdbfe;
+  padding: .1rem .3rem; border-radius: 3px;
+  font-size: .78rem; font-family: ui-monospace, monospace;
+}
+
+.empty { color: var(--ink3); font-size: .85rem; padding: .5rem 0; }
+</style>
+</head>
+<body>
+<div id="setup-screen" style="display:none;min-height:100vh;align-items:center;justify-content:center;padding:2rem 1.25rem;background:var(--bg)">
+  <div style="width:100%;max-width:400px">
+    <div style="margin-bottom:2rem">
+      <div style="font-size:1.4rem;font-weight:700;letter-spacing:-.03em;color:var(--ink);margin-bottom:.25rem">
+        Cardápio &amp; <span style="color:var(--accent)">Compras</span>
+      </div>
+      <div style="font-size:.82rem;color:var(--ink3)">Configuração inicial — feita uma vez por dispositivo</div>
+    </div>
+
+    <div style="background:var(--accent-bg);border:1.5px solid #bfdbfe;border-radius:var(--r);padding:1rem 1.1rem;margin-bottom:1.5rem;font-size:.82rem;color:var(--ink2);line-height:1.65">
+      <strong style="display:block;margin-bottom:.3rem;color:var(--ink)">🔒 Seu token nunca vai para o repositório</strong>
+      Ele fica salvo apenas neste dispositivo (localStorage). Cada pessoa configura o app uma vez no próprio celular.
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:.85rem">
+      <div>
+        <label style="display:block;font-size:.72rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--ink2);margin-bottom:.35rem">Gist ID</label>
+        <input id="setup-gist-id" type="text" placeholder="54484f07a9de3e6f02ec0d39d1630389"
+          style="width:100%;background:var(--surface);border:1.5px solid var(--border);border-radius:var(--r-sm);font-family:'Plus Jakarta Sans',sans-serif;font-size:.9rem;color:var(--ink);padding:.65rem .85rem;outline:none;font-family:ui-monospace,monospace" />
+        <div style="font-size:.72rem;color:var(--ink3);margin-top:.3rem">
+          A parte final da URL: <code style="background:var(--raised);padding:.1rem .3rem;border-radius:3px">gist.github.com/usuario/<strong>ID_AQUI</strong></code>
+        </div>
+      </div>
+      <div>
+        <label style="display:block;font-size:.72rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--ink2);margin-bottom:.35rem">Personal Access Token</label>
+        <input id="setup-gist-token" type="password" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx"
+          style="width:100%;background:var(--surface);border:1.5px solid var(--border);border-radius:var(--r-sm);font-family:ui-monospace,monospace;font-size:.9rem;color:var(--ink);padding:.65rem .85rem;outline:none" />
+        <div style="font-size:.72rem;color:var(--ink3);margin-top:.3rem">
+          GitHub → Settings → Developer Settings → Tokens → <em>escopo: gist</em>
+        </div>
+      </div>
+      <div id="setup-error" style="font-size:.82rem;color:var(--danger);min-height:1.2rem;font-weight:500"></div>
+      <button id="btn-setup-save"
+        style="background:var(--accent);color:#fff;border:none;border-radius:var(--r-sm);font-family:'Plus Jakarta Sans',sans-serif;font-size:.95rem;font-weight:600;padding:.8rem 1rem;cursor:pointer;width:100%">
+        Conectar
+      </button>
+    </div>
+  </div>
+</div>
+
+<div id="main-app" style="display:none">
+  <header>
+    <h1>Cardápio &amp; <em>Compras</em></h1>
+    <span class="subtitle">vegetariano · duas pessoas</span>
+  </header>
+
+  <div class="status-bar">
+    <span><span class="dot spin" id="dot-gist"></span><span id="st-gist">conectando ao Gist...</span></span>
+    <span style="color:var(--border)">·</span>
+    <span id="st-pratos" style="color:var(--ink3)"></span>
+    <button id="btn-setup-reset" style="margin-left:auto;background:none;border:none;font-family:'Plus Jakarta Sans',sans-serif;font-size:.72rem;color:var(--ink3);cursor:pointer;padding:.1rem 0;text-decoration:underline;text-underline-offset:2px">⚙ reconfigurar</button>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" data-tab="cardapio">📋 Cardápio</button>
+    <button class="tab" data-tab="compras">🛒 Compras</button>
+    <button class="tab" data-tab="pratos">🍽 Pratos</button>
+  </div>
+
+  <!-- ── CARDÁPIO ── -->
+  <div id="panel-cardapio" class="panel active">
+    <div class="section">
+      <div class="week-bar">
+        <button class="nav-btn" id="prev-w">←</button>
+        <span id="week-label"></span>
+        <button class="nav-btn" id="next-w">→</button>
+        <button class="btn-save" id="btn-save">↑ Salvar</button>
+      </div>
+      <div class="days-grid" id="days-grid"></div>
+    </div>
+  </div>
+
+  <!-- ── COMPRAS ── -->
+  <div id="panel-compras" class="panel">
+    <div class="section">
+      <div class="shop-toolbar">
+        <button class="btn-green" id="btn-gen">✦ Gerar do cardápio</button>
+        <button class="btn-ghost" id="btn-clr">✕ Marcados</button>
+        <span class="shop-prog" id="shop-prog"></span>
+        <button class="btn-save" id="btn-save-shop">↑ Salvar</button>
+      </div>
+      <div id="shop-list"><p class="empty">lista vazia</p></div>
+
+      <hr class="form-divider">
+
+      <div class="side-panel">
+        <h3>Adicionar item</h3>
+        <div class="field"><label>Nome</label><input id="ni-name" placeholder="ex: sabão em pó" /></div>
+        <div class="field"><label>Quantidade</label><input id="ni-qty" placeholder="ex: 1 kg, 2 un" /></div>
+        <div class="field">
+          <label>Categoria</label>
+          <select id="ni-cat">
+            <option>Hortifrúti</option><option>Grãos e cereais</option>
+            <option>Laticínios/Ovos</option><option>Padaria</option>
+            <option>Conservas</option><option>Temperos</option>
+            <option>Bebidas</option><option>Limpeza</option>
+            <option>Higiene</option><option>Outros</option>
+          </select>
+        </div>
+        <button class="btn-full" id="btn-add-shop">+ Adicionar</button>
+        <div class="side-foot">
+          <button class="btn-ghost" onclick="window.print()">🖨 Imprimir</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── PRATOS ── -->
+  <div id="panel-pratos" class="panel">
+    <div class="section">
+      <div class="pratos-toolbar">
+        <input class="prato-filter" id="prato-filter" placeholder="buscar prato..." />
+        <select class="prato-filter" id="prato-cat-filter" style="flex:0 0 auto;width:auto">
+          <option value="">todas</option>
+          <option>Massas</option><option>Básicos</option><option>Sopas</option>
+          <option>Saladas</option><option>Assados</option><option>Lanches</option>
+          <option>Acompanhamentos</option><option>Doces</option>
+        </select>
+      </div>
+      <div class="prato-list" id="prato-list"><p class="empty">carregando...</p></div>
+
+      <hr class="form-divider">
+
+      <div class="side-panel" id="prato-form-panel">
+        <h3 id="prato-form-title">Novo prato</h3>
+        <div class="field"><label>Nome do prato</label><input id="pf-nome" placeholder="ex: Sopa de abóbora" /></div>
+        <div class="field">
+          <label>Categoria</label>
+          <select id="pf-cat">
+            <option>Massas</option><option>Básicos</option><option>Sopas</option>
+            <option>Saladas</option><option>Assados</option><option>Lanches</option>
+            <option>Acompanhamentos</option><option>Doces</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Ingredientes</label>
+          <div class="hint">Um por linha: <strong>nome, quantidade, categoria</strong><br>
+          Ex: <code>tomate, 2 un, Hortifrúti</code></div>
+          <textarea id="pf-ings" placeholder="tomate, 2 un, Hortifrúti&#10;alho, 3 dentes, Hortifrúti&#10;azeite, 3 col, Temperos"></textarea>
+        </div>
+        <button class="btn-full" id="btn-save-prato">+ Salvar prato</button>
+        <div class="side-foot" id="prato-form-foot" style="display:none">
+          <button class="btn-ghost" id="btn-cancel-edit">Cancelar edição</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div><!-- /app -->
+</div><!-- /main-app -->
+<div class="overlay" id="overlay">
+  <div class="modal">
+    <div class="modal-head">
+      <h2 id="modal-title">Escolher prato</h2>
+      <button class="modal-x" id="modal-x">✕</button>
+    </div>
+    <div class="modal-search"><input id="modal-q" placeholder="buscar..." /></div>
+    <div class="modal-body" id="modal-body"></div>
+  </div>
+</div>
+
+<script>
+// ── Config: lida do localStorage, nunca do código ──
+// O token NUNCA vai para o repositório. Cada pessoa
+// cola uma vez no app e fica salvo só no dispositivo dela.
+let GIST_ID    = localStorage.getItem('cfg_gist_id')    || '';
+let GIST_TOKEN = localStorage.getItem('cfg_gist_token') || '';
+
+function saveConfig(id, token){
+  GIST_ID    = id.trim();
+  GIST_TOKEN = token.trim();
+  localStorage.setItem('cfg_gist_id',    GIST_ID);
+  localStorage.setItem('cfg_gist_token', GIST_TOKEN);
+}
+function clearConfig(){
+  localStorage.removeItem('cfg_gist_id');
+  localStorage.removeItem('cfg_gist_token');
+  GIST_ID = GIST_TOKEN = '';
+}
+
+// State: { cardapios:{}, compras:{}, pratos:[] }
+let state = { cardapios:{}, compras:{}, pratos:[] };
+let gistFileName = 'cardapio-data.json';
+let weekOffset = 0;
+let editingPratoId = null;
+
+const DAYS = [
+  {key:'dom',label:'Domingo',  ini:'D'},
+  {key:'seg',label:'Segunda',  ini:'S'},
+  {key:'ter',label:'Terça',    ini:'T'},
+  {key:'qua',label:'Quarta',   ini:'Q'},
+  {key:'qui',label:'Quinta',   ini:'Q'},
+  {key:'sex',label:'Sexta',    ini:'S'},
+  {key:'sab',label:'Sábado',   ini:'S'},
+];
+
+const PRATOS_INICIAIS = [
+  {nome:'Omelete de legumes', categoria:'Básicos', ingredientes:[
+    {nome:'Ovos',qty:'4 un',cat:'Laticínios/Ovos'},{nome:'Cebola',qty:'1 un',cat:'Hortifrúti'},
+    {nome:'Tomate',qty:'1 un',cat:'Hortifrúti'},{nome:'Abobrinha',qty:'1 un',cat:'Hortifrúti'},
+    {nome:'Azeite',qty:'fio',cat:'Temperos'}]},
+  {nome:'Empanadas de berinjela', categoria:'Assados', ingredientes:[
+    {nome:'Berinjela',qty:'2 un',cat:'Hortifrúti'},{nome:'Tomate',qty:'2 un',cat:'Hortifrúti'},
+    {nome:'Ricota',qty:'250g',cat:'Laticínios/Ovos'},{nome:'Farinha de trigo',qty:'200g',cat:'Grãos e cereais'},
+    {nome:'Azeite',qty:'fio',cat:'Temperos'}]},
+  {nome:'Cachapa de milho', categoria:'Lanches', ingredientes:[
+    {nome:'Milho verde',qty:'400g',cat:'Hortifrúti'},{nome:'Farinha de milho',qty:'100g',cat:'Grãos e cereais'},
+    {nome:'Queijo minas',qty:'200g',cat:'Laticínios/Ovos'},{nome:'Manteiga',qty:'1 col',cat:'Laticínios/Ovos'}]},
+  {nome:'Wrap vegetariano', categoria:'Lanches', ingredientes:[
+    {nome:'Tortilha/wrap',qty:'4 un',cat:'Padaria'},{nome:'Alface',qty:'1/2 maço',cat:'Hortifrúti'},
+    {nome:'Tomate',qty:'2 un',cat:'Hortifrúti'},{nome:'Cenoura',qty:'1 un',cat:'Hortifrúti'},
+    {nome:'Homus',qty:'200g',cat:'Outros'}]},
+  {nome:'Feijão com arroz', categoria:'Básicos', ingredientes:[
+    {nome:'Feijão carioca',qty:'500g',cat:'Grãos e cereais'},{nome:'Arroz integral',qty:'500g',cat:'Grãos e cereais'},
+    {nome:'Alho',qty:'4 dentes',cat:'Hortifrúti'},{nome:'Cebola',qty:'1 un',cat:'Hortifrúti'},
+    {nome:'Azeite',qty:'fio',cat:'Temperos'}]},
+  {nome:'Pastel de lentilha', categoria:'Assados', ingredientes:[
+    {nome:'Lentilha',qty:'400g',cat:'Grãos e cereais'},{nome:'Cebola',qty:'1 un',cat:'Hortifrúti'},
+    {nome:'Alho',qty:'3 dentes',cat:'Hortifrúti'},{nome:'Cominho',qty:'1 col chá',cat:'Temperos'},
+    {nome:'Massa de pastel',qty:'1 pct',cat:'Padaria'}]},
+  {nome:'Lasanha de legumes', categoria:'Massas', ingredientes:[
+    {nome:'Massa de lasanha',qty:'1 pct',cat:'Grãos e cereais'},{nome:'Berinjela',qty:'1 un',cat:'Hortifrúti'},
+    {nome:'Abobrinha',qty:'1 un',cat:'Hortifrúti'},{nome:'Molho de tomate',qty:'500ml',cat:'Conservas'},
+    {nome:'Queijo mussarela',qty:'300g',cat:'Laticínios/Ovos'},{nome:'Ricota',qty:'250g',cat:'Laticínios/Ovos'}]},
+  {nome:'A la minuta vegetariana', categoria:'Básicos', ingredientes:[
+    {nome:'Ovos',qty:'4 un',cat:'Laticínios/Ovos'},{nome:'Tomate',qty:'2 un',cat:'Hortifrúti'},
+    {nome:'Cebola',qty:'1 un',cat:'Hortifrúti'},{nome:'Alho',qty:'2 dentes',cat:'Hortifrúti'},
+    {nome:'Azeite',qty:'fio',cat:'Temperos'}]},
+  {nome:'Feijão com tofu e legumes', categoria:'Básicos', ingredientes:[
+    {nome:'Feijão preto',qty:'500g',cat:'Grãos e cereais'},{nome:'Tofu firme',qty:'300g',cat:'Outros'},
+    {nome:'Cenoura',qty:'2 un',cat:'Hortifrúti'},{nome:'Chuchu',qty:'1 un',cat:'Hortifrúti'},
+    {nome:'Alho',qty:'3 dentes',cat:'Hortifrúti'}]},
+  {nome:'Pizza de pão árabe', categoria:'Lanches', ingredientes:[
+    {nome:'Pão árabe',qty:'4 un',cat:'Padaria'},{nome:'Molho de tomate',qty:'200ml',cat:'Conservas'},
+    {nome:'Queijo mussarela',qty:'200g',cat:'Laticínios/Ovos'},{nome:'Tomate',qty:'2 un',cat:'Hortifrúti'},
+    {nome:'Orégano',qty:'a gosto',cat:'Temperos'}]},
+  {nome:'Massa com berinjela e tomate', categoria:'Massas', ingredientes:[
+    {nome:'Massa integral',qty:'500g',cat:'Grãos e cereais'},{nome:'Berinjela',qty:'1 un',cat:'Hortifrúti'},
+    {nome:'Tomate',qty:'3 un',cat:'Hortifrúti'},{nome:'Alho',qty:'4 dentes',cat:'Hortifrúti'},
+    {nome:'Manjericão',qty:'a gosto',cat:'Temperos'}]},
+  {nome:'Sopa de lentilha', categoria:'Sopas', ingredientes:[
+    {nome:'Lentilha',qty:'400g',cat:'Grãos e cereais'},{nome:'Cenoura',qty:'2 un',cat:'Hortifrúti'},
+    {nome:'Batata',qty:'2 un',cat:'Hortifrúti'},{nome:'Cebola',qty:'1 un',cat:'Hortifrúti'},
+    {nome:'Cúrcuma',qty:'1 col chá',cat:'Temperos'}]},
+  {nome:'Creme de abóbora', categoria:'Sopas', ingredientes:[
+    {nome:'Abóbora',qty:'800g',cat:'Hortifrúti'},{nome:'Cebola',qty:'1 un',cat:'Hortifrúti'},
+    {nome:'Alho',qty:'3 dentes',cat:'Hortifrúti'},{nome:'Leite de coco',qty:'200ml',cat:'Bebidas'},
+    {nome:'Noz-moscada',qty:'pitada',cat:'Temperos'}]},
+  {nome:'Grão-de-bico ao curry', categoria:'Básicos', ingredientes:[
+    {nome:'Grão-de-bico',qty:'400g',cat:'Grãos e cereais'},{nome:'Leite de coco',qty:'200ml',cat:'Bebidas'},
+    {nome:'Tomate',qty:'2 un',cat:'Hortifrúti'},{nome:'Curry',qty:'2 col chá',cat:'Temperos'},
+    {nome:'Cebola',qty:'1 un',cat:'Hortifrúti'},{nome:'Alho',qty:'3 dentes',cat:'Hortifrúti'}]},
+  {nome:'Salada completa', categoria:'Saladas', ingredientes:[
+    {nome:'Alface',qty:'1 maço',cat:'Hortifrúti'},{nome:'Rúcula',qty:'1 maço',cat:'Hortifrúti'},
+    {nome:'Tomate cereja',qty:'200g',cat:'Hortifrúti'},{nome:'Pepino',qty:'1 un',cat:'Hortifrúti'},
+    {nome:'Cenoura',qty:'1 un',cat:'Hortifrúti'},{nome:'Azeite',qty:'fio',cat:'Temperos'}]},
+  {nome:'Batata ao forno', categoria:'Acompanhamentos', ingredientes:[
+    {nome:'Batata',qty:'1kg',cat:'Hortifrúti'},{nome:'Azeite',qty:'3 col',cat:'Temperos'},
+    {nome:'Alecrim',qty:'2 ramos',cat:'Temperos'},{nome:'Alho',qty:'4 dentes',cat:'Hortifrúti'},
+    {nome:'Páprica',qty:'1 col chá',cat:'Temperos'}]},
+  {nome:'Panqueca de espinafre', categoria:'Massas', ingredientes:[
+    {nome:'Farinha de trigo',qty:'200g',cat:'Grãos e cereais'},{nome:'Espinafre',qty:'1 maço',cat:'Hortifrúti'},
+    {nome:'Ovos',qty:'2 un',cat:'Laticínios/Ovos'},{nome:'Leite',qty:'300ml',cat:'Laticínios/Ovos'},
+    {nome:'Queijo minas',qty:'200g',cat:'Laticínios/Ovos'}]},
+  {nome:'Caponata de berinjela', categoria:'Acompanhamentos', ingredientes:[
+    {nome:'Berinjela',qty:'2 un',cat:'Hortifrúti'},{nome:'Tomate',qty:'3 un',cat:'Hortifrúti'},
+    {nome:'Cebola',qty:'1 un',cat:'Hortifrúti'},{nome:'Azeitona',qty:'100g',cat:'Conservas'},
+    {nome:'Alcaparra',qty:'2 col',cat:'Conservas'},{nome:'Azeite',qty:'3 col',cat:'Temperos'}]},
+  {nome:'Bolinho de arroz', categoria:'Lanches', ingredientes:[
+    {nome:'Arroz cozido',qty:'2 xíc',cat:'Grãos e cereais'},{nome:'Ovos',qty:'2 un',cat:'Laticínios/Ovos'},
+    {nome:'Farinha de rosca',qty:'100g',cat:'Grãos e cereais'},{nome:'Queijo ralado',qty:'50g',cat:'Laticínios/Ovos'}]},
+  {nome:'Tortinha de maçã', categoria:'Doces', ingredientes:[
+    {nome:'Farinha de trigo',qty:'200g',cat:'Grãos e cereais'},{nome:'Maçã',qty:'3 un',cat:'Hortifrúti'},
+    {nome:'Açúcar',qty:'100g',cat:'Outros'},{nome:'Canela',qty:'1 col chá',cat:'Temperos'},
+    {nome:'Manteiga',qty:'80g',cat:'Laticínios/Ovos'},{nome:'Ovos',qty:'1 un',cat:'Laticínios/Ovos'}]},
+];
+
+// ─ utils ──────────────────────────────────
+const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2); }
+
+function isoWeek(d){
+  const t=new Date(Date.UTC(d.getFullYear(),d.getMonth(),d.getDate()));
+  t.setUTCDate(t.getUTCDate()+4-(t.getUTCDay()||7));
+  return Math.ceil(((t-new Date(Date.UTC(t.getUTCFullYear(),0,1)))/86400000+1)/7);
+}
+function weekKey(off=weekOffset){
+  const d=new Date(); d.setDate(d.getDate()-d.getDay()+off*7);
+  return `${d.getFullYear()}-W${String(isoWeek(d)).padStart(2,'0')}`;
+}
+function weekDates(off=weekOffset){
+  const d=new Date(),sun=new Date(d);
+  sun.setDate(d.getDate()-d.getDay()+off*7);
+  return DAYS.map((_,i)=>{const dd=new Date(sun);dd.setDate(sun.getDate()+i);return dd;});
+}
+const fmtD = d => d.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'});
+function setDot(cls,msg){
+  document.getElementById('dot-gist').className='dot '+cls;
+  document.getElementById('st-gist').textContent=msg;
+}
+
+// ─ Gist ───────────────────────────────────
+async function gistLoad(){
+  setDot('spin','conectando...');
+  try{
+    const r=await fetch(`https://api.github.com/gists/${GIST_ID}`,
+      {headers:{Authorization:`token ${GIST_TOKEN}`,Accept:'application/vnd.github.v3+json'}});
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    const data = await r.json();
+    const file = Object.values(data.files)[0];
+    gistFileName = file.filename;
+    const parsed = JSON.parse(file.content);
+    // merge: se não tiver pratos no gist, usa os iniciais
+    state.cardapios = parsed.cardapios || {};
+    state.compras   = parsed.compras   || {};
+    state.pratos    = (parsed.pratos && parsed.pratos.length)
+      ? parsed.pratos
+      : PRATOS_INICIAIS.map(p=>({...p, id:uid()}));
+    setDot('ok','Gist conectado');
+    document.getElementById('st-pratos').textContent = `${state.pratos.length} pratos cadastrados`;
+  }catch(e){
+    setDot('err',`erro: ${e.message}`);
+    // fallback: usa pratos iniciais localmente
+    if(!state.pratos.length)
+      state.pratos = PRATOS_INICIAIS.map(p=>({...p, id:uid()}));
+  }
+}
+
+async function gistSave(){
+  document.querySelectorAll('.btn-save').forEach(b=>b.disabled=true);
+  setDot('spin','salvando...');
+  try{
+    const r=await fetch(`https://api.github.com/gists/${GIST_ID}`,{
+      method:'PATCH',
+      headers:{Authorization:`token ${GIST_TOKEN}`,'Content-Type':'application/json'},
+      body:JSON.stringify({files:{[gistFileName]:{content:JSON.stringify(state,null,2)}}})
+    });
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    setDot('ok','salvo ✓');
+    document.getElementById('st-pratos').textContent = `${state.pratos.length} pratos cadastrados`;
+  }catch(e){
+    setDot('err',`erro ao salvar: ${e.message}`);
+    alert('Erro ao salvar no Gist: '+e.message);
+  }
+  document.querySelectorAll('.btn-save').forEach(b=>b.disabled=false);
+}
+
+// ─ State helpers ──────────────────────────
+const getCardapio = ()=>state.cardapios[weekKey()]||{};
+const saveCardapio= c=>{state.cardapios[weekKey()]=c;};
+const getCompras  = ()=>state.compras[weekKey()]||[];
+const saveCompras = c=>{state.compras[weekKey()]=c;};
+
+// ─ Render: Cardápio ───────────────────────
+function renderDays(){
+  const dates=weekDates(), off=weekOffset;
+  const tag=off===0?'esta semana':off===1?'próx. semana':off===-1?'sem. passada':'';
+  document.getElementById('week-label').textContent=
+    (tag?tag+' · ':'')+fmtD(dates[0])+'–'+fmtD(dates[6]);
+  const cardapio=getCardapio(), grid=document.getElementById('days-grid');
+  grid.innerHTML='';
+  DAYS.forEach((day,i)=>{
+    const slots=cardapio[day.key]||{almoco:null,janta:null};
+    const card=document.createElement('div');
+    card.className='day-card';
+    card.innerHTML=`
+      <div class="day-head">
+        <div class="day-ini">${esc(day.ini)}</div>
+        <div><div class="day-name">${esc(day.label)}</div><div class="day-date">${fmtD(dates[i])}</div></div>
+      </div>
+      <div class="meal-slot">
+        <div class="slot-lbl">☀ Almoço</div>
+        ${chipHTML(slots.almoco,day.key,'almoco')}
+      </div>
+      <div class="meal-slot">
+        <div class="slot-lbl">🌙 Janta</div>
+        ${chipHTML(slots.janta,day.key,'janta')}
+      </div>`;
+    grid.appendChild(card);
+  });
+}
+
+function chipHTML(dish,dk,slot){
+  if(dish) return `<div class="meal-chip" onclick="openModal('${dk}','${slot}')">
+    <span class="chip-name">${esc(dish.nome)}</span>
+    <button class="chip-del" onclick="event.stopPropagation();rmMeal('${dk}','${slot}')">✕</button>
+  </div>`;
+  return `<button class="add-btn" onclick="openModal('${dk}','${slot}')">+ escolher</button>`;
+}
+function rmMeal(dk,slot){
+  const c=getCardapio();
+  if(!c[dk])c[dk]={almoco:null,janta:null};
+  c[dk][slot]=null;saveCardapio(c);renderDays();
+}
+
+// ─ Modal picker ───────────────────────────
+let mTarget=null;
+function openModal(dk,slot){
+  mTarget={dk,slot};
+  document.getElementById('modal-title').textContent=slot==='almoco'?'☀ Almoço — escolher prato':'🌙 Janta — escolher prato';
+  document.getElementById('modal-q').value='';
+  renderModal('');
+  document.getElementById('overlay').classList.add('open');
+  setTimeout(()=>document.getElementById('modal-q').focus(),80);
+}
+function closeModal(){document.getElementById('overlay').classList.remove('open');}
+document.getElementById('modal-x').onclick=closeModal;
+document.getElementById('overlay').onclick=e=>{if(e.target===e.currentTarget)closeModal();};
+document.getElementById('modal-q').oninput=e=>renderModal(e.target.value.toLowerCase());
+
+function renderModal(q){
+  const body=document.getElementById('modal-body');
+  const list=q
+    ? state.pratos.filter(d=>d.nome.toLowerCase().includes(q)||d.categoria.toLowerCase().includes(q))
+    : state.pratos;
+  if(!list.length){body.innerHTML='<p class="empty-modal">nenhum prato encontrado</p>';return;}
+  const cats={};
+  list.forEach(d=>{if(!cats[d.categoria])cats[d.categoria]=[];cats[d.categoria].push(d);});
+  body.innerHTML=Object.entries(cats).map(([cat,ds])=>
+    `<div class="mcat">${esc(cat)}</div>`+
+    ds.map(d=>`<div class="dish-row" onclick="pickDish('${esc(d.id)}')">
+      <div class="dish-nm">${esc(d.nome)}</div>
+      <div class="dish-ing">${(d.ingredientes||[]).map(i=>esc(i.nome)).join(', ')}</div>
+    </div>`).join('')
+  ).join('');
+}
+function pickDish(id){
+  const dish=state.pratos.find(d=>d.id===id);
+  if(!dish||!mTarget)return;
+  const c=getCardapio();
+  if(!c[mTarget.dk])c[mTarget.dk]={almoco:null,janta:null};
+  c[mTarget.dk][mTarget.slot]=dish;
+  saveCardapio(c);closeModal();renderDays();
+}
+
+// ─ Render: Compras ────────────────────────
+function renderShop(){
+  const items=getCompras();
+  const done=items.filter(x=>x.checked).length;
+  document.getElementById('shop-prog').textContent=items.length?`${done}/${items.length} marcados`:'';
+  const cont=document.getElementById('shop-list');
+  if(!items.length){cont.innerHTML='<p class="empty">lista vazia</p>';return;}
+  const cats={};
+  items.forEach(it=>{if(!cats[it.cat])cats[it.cat]=[];cats[it.cat].push(it);});
+  cont.innerHTML=Object.entries(cats).map(([cat,citems])=>
+    `<div class="cat-block"><div class="cat-lbl">${esc(cat)}</div>`+
+    citems.map(it=>`<div class="si">
+      <div class="si-check ${it.checked?'on':''}" onclick="togShop('${it.id}')">${it.checked?'✓':''}</div>
+      <span class="si-name ${it.checked?'on':''}">${esc(it.nome)}</span>
+      ${it.qty?`<span class="si-qty">${esc(it.qty)}</span>`:''}
+      <button class="si-del" onclick="delShop('${it.id}')">✕</button>
+    </div>`).join('')+'</div>'
+  ).join('');
+}
+function togShop(id){
+  const s=getCompras(),it=s.find(x=>x.id===id);
+  if(it)it.checked=!it.checked;saveCompras(s);renderShop();
+}
+function delShop(id){saveCompras(getCompras().filter(x=>x.id!==id));renderShop();}
+function addShop(nome,qty,cat){
+  if(!nome.trim())return;
+  const s=getCompras();
+  s.push({id:uid(),nome:nome.trim(),qty:qty.trim(),cat,checked:false});
+  saveCompras(s);renderShop();
+}
+
+document.getElementById('btn-gen').onclick=()=>{
+  const cardapio=getCardapio();
+  const existing=new Set(getCompras().map(x=>x.nome.toLowerCase()));
+  let added=0;
+  Object.values(cardapio).forEach(slots=>{
+    ['almoco','janta'].forEach(slot=>{
+      const dish=slots[slot];
+      if(!dish)return;
+      (dish.ingredientes||[]).forEach(ing=>{
+        if(!existing.has(ing.nome.toLowerCase())){
+          addShop(ing.nome,ing.qty,ing.cat);
+          existing.add(ing.nome.toLowerCase());added++;
+        }
+      });
+    });
+  });
+  if(!added)alert('Todos os ingredientes já estão na lista, ou o cardápio está vazio.');
+};
+
+document.getElementById('btn-clr').onclick=()=>{
+  if(!confirm('Remover todos os itens marcados?'))return;
+  saveCompras(getCompras().filter(x=>!x.checked));renderShop();
+};
+
+document.getElementById('btn-add-shop').onclick=()=>{
+  addShop(document.getElementById('ni-name').value,
+          document.getElementById('ni-qty').value,
+          document.getElementById('ni-cat').value);
+  document.getElementById('ni-name').value='';
+  document.getElementById('ni-qty').value='';
+};
+document.getElementById('ni-name').onkeydown=e=>{if(e.key==='Enter')document.getElementById('btn-add-shop').click();};
+
+// ─ Render: Pratos ─────────────────────────
+function renderPratos(){
+  const q=document.getElementById('prato-filter').value.toLowerCase();
+  const catF=document.getElementById('prato-cat-filter').value;
+  const list=state.pratos.filter(p=>{
+    const matchQ=!q||p.nome.toLowerCase().includes(q);
+    const matchC=!catF||p.categoria===catF;
+    return matchQ&&matchC;
+  });
+  const cont=document.getElementById('prato-list');
+  if(!list.length){cont.innerHTML='<p class="empty">nenhum prato encontrado</p>';return;}
+  cont.innerHTML=list.map(p=>`
+    <div class="prato-card ${editingPratoId===p.id?'editing':''}">
+      <div class="prato-info">
+        <div class="prato-nome">${esc(p.nome)}</div>
+        <div class="prato-cat-tag">${esc(p.categoria)}</div>
+        <div class="prato-ings">${(p.ingredientes||[]).map(i=>`${esc(i.nome)} <span style="color:var(--line)">·</span> ${esc(i.qty)}`).join(' &nbsp; ')}</div>
+      </div>
+      <div class="prato-actions">
+        <button onclick="editPrato('${p.id}')">✎ editar</button>
+        <button class="btn-del" onclick="deletePrato('${p.id}')">✕ excluir</button>
+      </div>
+    </div>`).join('');
+}
+
+function parseIngredientes(txt){
+  return txt.trim().split('\n').filter(l=>l.trim()).map(line=>{
+    const parts=line.split(',').map(s=>s.trim());
+    return {nome:parts[0]||'', qty:parts[1]||'', cat:parts[2]||'Outros'};
+  }).filter(i=>i.nome);
+}
+
+function formatIngredientes(ings){
+  return (ings||[]).map(i=>`${i.nome}, ${i.qty}, ${i.cat}`).join('\n');
+}
+
+document.getElementById('btn-save-prato').onclick=()=>{
+  const nome=document.getElementById('pf-nome').value.trim();
+  const cat =document.getElementById('pf-cat').value;
+  const ings=parseIngredientes(document.getElementById('pf-ings').value);
+  if(!nome){alert('Nome do prato é obrigatório.');return;}
+  if(editingPratoId){
+    const p=state.pratos.find(x=>x.id===editingPratoId);
+    if(p){p.nome=nome;p.categoria=cat;p.ingredientes=ings;}
+    editingPratoId=null;
+    document.getElementById('prato-form-title').textContent='Novo prato';
+    document.getElementById('prato-form-foot').style.display='none';
+    document.getElementById('btn-save-prato').textContent='+ Salvar prato';
+  }else{
+    state.pratos.push({id:uid(),nome,categoria:cat,ingredientes:ings});
+  }
+  document.getElementById('pf-nome').value='';
+  document.getElementById('pf-ings').value='';
+  renderPratos();
+  gistSave();
+};
+
+function editPrato(id){
+  const p=state.pratos.find(x=>x.id===id);
+  if(!p)return;
+  editingPratoId=id;
+  document.getElementById('pf-nome').value=p.nome;
+  document.getElementById('pf-cat').value=p.categoria;
+  document.getElementById('pf-ings').value=formatIngredientes(p.ingredientes);
+  document.getElementById('prato-form-title').textContent='Editar prato';
+  document.getElementById('prato-form-foot').style.display='flex';
+  document.getElementById('btn-save-prato').textContent='✓ Salvar alterações';
+  document.getElementById('pf-nome').focus();
+  renderPratos();
+  document.getElementById('prato-form-panel').scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+function deletePrato(id){
+  const p=state.pratos.find(x=>x.id===id);
+  if(!p)return;
+  if(!confirm(`Excluir "${p.nome}"? O prato será removido do banco de dados.`))return;
+  state.pratos=state.pratos.filter(x=>x.id!==id);
+  if(editingPratoId===id){
+    editingPratoId=null;
+    document.getElementById('pf-nome').value='';
+    document.getElementById('pf-ings').value='';
+    document.getElementById('prato-form-title').textContent='Novo prato';
+    document.getElementById('prato-form-foot').style.display='none';
+    document.getElementById('btn-save-prato').textContent='+ Salvar prato';
+  }
+  renderPratos();
+  gistSave();
+}
+
+document.getElementById('btn-cancel-edit').onclick=()=>{
+  editingPratoId=null;
+  document.getElementById('pf-nome').value='';
+  document.getElementById('pf-ings').value='';
+  document.getElementById('prato-form-title').textContent='Novo prato';
+  document.getElementById('prato-form-foot').style.display='none';
+  document.getElementById('btn-save-prato').textContent='+ Salvar prato';
+  renderPratos();
+};
+
+document.getElementById('prato-filter').oninput=renderPratos;
+document.getElementById('prato-cat-filter').onchange=renderPratos;
+
+// ─ Tabs & nav ─────────────────────────────
+document.querySelectorAll('.tab').forEach(btn=>{
+  btn.onclick=()=>{
+    document.querySelectorAll('.tab').forEach(b=>b.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('panel-'+btn.dataset.tab).classList.add('active');
+    if(btn.dataset.tab==='compras')renderShop();
+    if(btn.dataset.tab==='pratos')renderPratos();
+  };
+});
+
+document.getElementById('prev-w').onclick=()=>{weekOffset--;renderDays();};
+document.getElementById('next-w').onclick=()=>{weekOffset++;renderDays();};
+document.getElementById('btn-save').onclick=gistSave;
+document.getElementById('btn-save-shop').onclick=gistSave;
+
+// ─ Init ───────────────────────────────────
+async function init(){
+  if(!GIST_ID || !GIST_TOKEN){
+    showSetup();
+    return;
+  }
+  document.getElementById('setup-screen').style.display='none';
+  document.getElementById('main-app').style.display='block';
+  await gistLoad();
+  renderDays();
+}
+
+function showSetup(){
+  document.getElementById('setup-screen').style.display='flex';
+  document.getElementById('main-app').style.display='none';
+  // pré-preenche se já tiver algo salvo
+  document.getElementById('setup-gist-id').value    = GIST_ID;
+  document.getElementById('setup-gist-token').value = GIST_TOKEN;
+}
+
+document.getElementById('btn-setup-save').onclick = async ()=>{
+  const id    = document.getElementById('setup-gist-id').value.trim();
+  const token = document.getElementById('setup-gist-token').value.trim();
+  if(!id || !token){
+    document.getElementById('setup-error').textContent='Preencha os dois campos.';
+    return;
+  }
+  document.getElementById('setup-error').textContent='';
+  document.getElementById('btn-setup-save').textContent='Verificando...';
+  document.getElementById('btn-setup-save').disabled=true;
+  // testa a conexão antes de salvar
+  try{
+    const r = await fetch(`https://api.github.com/gists/${id}`,
+      {headers:{Authorization:`token ${token}`,Accept:'application/vnd.github.v3+json'}});
+    if(!r.ok) throw new Error(`Erro ${r.status} — verifique o Gist ID e o token.`);
+    saveConfig(id, token);
+    document.getElementById('btn-setup-save').textContent='Conectar';
+    document.getElementById('btn-setup-save').disabled=false;
+    init();
+  }catch(e){
+    document.getElementById('setup-error').textContent = e.message;
+    document.getElementById('btn-setup-save').textContent='Conectar';
+    document.getElementById('btn-setup-save').disabled=false;
+  }
+};
+
+document.getElementById('btn-setup-reset').onclick = ()=>{
+  if(!confirm('Remover credenciais salvas neste dispositivo?')) return;
+  clearConfig();
+  showSetup();
+};
+
+init();
+</script>
+</body>
+</html>
