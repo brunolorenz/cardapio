@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Cardápio & Compras</title>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -488,18 +488,11 @@ header h1 em { color: var(--accent); font-style: normal; }
   #print-sheet .p-slot { display: flex; gap: 2mm; font-size: 7.5pt; padding: .4mm 0; }
   #print-sheet .p-slot-lbl { color: #888; flex-shrink: 0; width: 10mm; }
   #print-sheet .p-slot-val { flex: 1; }
-  #print-sheet .p-divider {
-    border: none; border-top: 1pt solid #000;
-    margin: 3mm 0;
-  }
-  #print-sheet .p-cat { margin-bottom: 2mm; }
-  #print-sheet .p-cat-name {
-    font-size: 7pt; font-weight: 700;
-    text-transform: uppercase; letter-spacing: .06em;
-    color: #444; margin-bottom: .8mm;
-  }
-  #print-sheet .p-item { display: flex; justify-content: space-between; padding: .3mm 0; border-bottom: .3pt dotted #ccc; font-size: 7.5pt; }
-  #print-sheet .p-item-qty { color: #555; margin-left: 2mm; }
+  #print-sheet .p-divider { display: none; }
+  #print-sheet .p-cat { display: none; }
+  #print-sheet .p-cat-name { display: none; }
+  #print-sheet .p-item { display: none; }
+  #print-sheet .p-item-qty { display: none; }
   #print-sheet .p-empty { color: #aaa; font-size: 7pt; font-style: italic; }
 }
 
@@ -601,7 +594,7 @@ header h1 em { color: var(--accent); font-style: normal; }
         </div>
         <button class="btn-full" id="btn-add-shop">+ Adicionar</button>
         <div class="side-foot">
-          <button class="btn-ghost" id="btn-print">🖨 Imprimir cardápio + lista</button>
+          <button class="btn-ghost" id="btn-print">🖨 Imprimir cardápio</button>
         </div>
       </div>
     </div>
@@ -1251,13 +1244,11 @@ document.getElementById('new-cat-compra').onkeydown   = e=>{ if(e.key==='Enter')
 // ─ Impressão ──────────────────────────────
 function buildPrintSheet(){
   const cardapio = getCardapio();
-  const compras  = getCompras();
   const dates    = weekDates();
 
   const tag = weekOffset===0?'Esta semana':weekOffset===1?'Próxima semana':weekOffset===-1?'Semana passada':'';
   const periodo = (tag?tag+' · ':'')+fmtD(dates[0])+' – '+fmtD(dates[6]);
 
-  // ── Cardápio ──
   const diasHTML = DAYS.map((day,i)=>{
     const slots = cardapio[day.key]||{almoco:null,janta:null};
     const almoco = slots.almoco ? esc(slots.almoco.nome) : '<span class="p-empty">—</span>';
@@ -1269,32 +1260,10 @@ function buildPrintSheet(){
     </div>`;
   }).join('');
 
-  // ── Compras agrupadas ──
-  let comprasHTML = '';
-  if(!compras.length){
-    comprasHTML = '<p class="p-empty">Lista vazia</p>';
-  } else {
-    const cats = {};
-    compras.forEach(it=>{ if(!cats[it.cat]) cats[it.cat]=[]; cats[it.cat].push(it); });
-    comprasHTML = Object.entries(cats).map(([cat,items])=>
-      `<div class="p-cat">
-        <div class="p-cat-name">${esc(cat)}</div>
-        ${items.map(it=>`<div class="p-item">
-          <span>${esc(it.nome)}</span>
-          ${it.qty?`<span class="p-item-qty">${esc(it.qty)}</span>`:''}
-        </div>`).join('')}
-      </div>`
-    ).join('');
-  }
-
   document.getElementById('print-sheet').innerHTML = `
-    <h1>Cardápio &amp; Compras</h1>
+    <h1>Cardápio da semana</h1>
     <p class="p-week">${periodo}</p>
-    <h2>Cardápio da semana</h2>
     ${diasHTML}
-    <hr class="p-divider">
-    <h2>Lista de compras</h2>
-    ${comprasHTML}
   `;
 }
 
