@@ -424,7 +424,7 @@ header h1 em { color: var(--accent); font-style: normal; }
   display: block;
   position: fixed;
   bottom: 0; left: 0; right: 0;
-  z-index: 45;
+  z-index: 100;
   background: var(--surface);
   border-top: 1.5px solid var(--border);
   border-radius: 16px 16px 0 0;
@@ -432,7 +432,7 @@ header h1 em { color: var(--accent); font-style: normal; }
   overflow-y: auto;
   transform: translateY(100%);
   transition: transform .28s cubic-bezier(.4,0,.2,1);
-  padding-bottom: 5rem;
+  padding-bottom: 2rem;
 }
 #panel-config.config-open {
   transform: translateY(0);
@@ -496,8 +496,6 @@ header h1 em { color: var(--accent); font-style: normal; }
 
   <div class="status-bar">
     <span><span class="dot spin" id="dot-gist"></span><span id="st-gist">conectando ao Gist...</span></span>
-    <span style="color:var(--border)">·</span>
-    <span id="st-pratos" style="color:var(--ink3)"></span>
     <button id="btn-open-config" style="margin-left:auto;background:none;border:1.5px solid var(--border);border-radius:var(--r-sm);font-family:'Plus Jakarta Sans',sans-serif;font-size:.75rem;font-weight:600;color:var(--ink2);cursor:pointer;padding:.25rem .65rem">⚙ Configurar</button>
   </div>
 
@@ -794,7 +792,6 @@ async function gistLoad(){
     state.cats_pratos  = (parsed.cats_pratos  && parsed.cats_pratos.length)  ? parsed.cats_pratos  : [...DEFAULT_CATS_PRATOS];
     state.cats_compras = (parsed.cats_compras && parsed.cats_compras.length) ? parsed.cats_compras : [...DEFAULT_CATS_COMPRAS];
     setDot('ok','Gist conectado');
-    document.getElementById('st-pratos').textContent = `${state.pratos.length} pratos cadastrados`;
   }catch(e){
     setDot('err',`erro: ${e.message}`);
     // fallback: usa pratos iniciais localmente
@@ -815,7 +812,6 @@ async function gistSave(){
     });
     if(!r.ok) throw new Error('HTTP '+r.status);
     setDot('ok','salvo ✓');
-    document.getElementById('st-pratos').textContent = `${state.pratos.length} pratos cadastrados`;
   }catch(e){
     setDot('err',`erro ao salvar: ${e.message}`);
     alert('Erro ao salvar no Gist: '+e.message);
