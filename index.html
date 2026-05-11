@@ -39,10 +39,10 @@ header h1 em{color:var(--accent);font-style:normal}
 .section{padding:1.25rem}
 
 /* Week bar */
-.week-bar{display:flex;align-items:center;gap:.5rem;margin-bottom:1.25rem}
-.nav-btn{background:var(--surface);border:1.5px solid var(--border);color:var(--ink2);width:38px;height:38px;border-radius:var(--r-sm);cursor:pointer;font-size:1rem;display:flex;align-items:center;justify-content:center;transition:border-color .15s;flex-shrink:0}
+.week-bar{display:flex;align-items:center;gap:.4rem;margin-bottom:1.25rem;flex-wrap:nowrap}
+.nav-btn{background:var(--surface);border:1.5px solid var(--border);color:var(--ink2);width:36px;height:36px;border-radius:var(--r-sm);cursor:pointer;font-size:1rem;display:flex;align-items:center;justify-content:center;transition:border-color .15s;flex-shrink:0}
 .nav-btn:active{border-color:var(--accent);color:var(--accent)}
-#week-label{flex:1;text-align:center;font-size:.85rem;font-weight:600;color:var(--ink2)}
+#week-label{flex:1;text-align:center;font-size:.78rem;font-weight:600;color:var(--ink2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
 /* Buttons */
 .btn-save{background:var(--accent);color:#fff;border:none;border-radius:var(--r-sm);font-family:'Plus Jakarta Sans',sans-serif;font-size:.8rem;font-weight:600;padding:.55rem 1rem;cursor:pointer;white-space:nowrap;transition:opacity .15s}
@@ -277,8 +277,8 @@ header h1 em{color:var(--accent);font-style:normal}
         <button class="nav-btn" id="prev-w">←</button>
         <span id="week-label"></span>
         <button class="nav-btn" id="next-w">→</button>
-        <button class="btn-orange" id="btn-copy-week" title="Copiar semana anterior">↩ Repetir</button>
-        <button class="btn-save" id="btn-save">↑ Salvar</button>
+        <button class="btn-icon" id="btn-copy-week" title="Repetir semana anterior" style="background:var(--orange);border-color:var(--orange);color:#fff">↩</button>
+        <button class="btn-icon btn-icon-accent" id="btn-save" title="Salvar">↑</button>
       </div>
       <div class="days-grid" id="days-grid"></div>
 
@@ -354,16 +354,6 @@ header h1 em{color:var(--accent);font-style:normal}
         </div>
       </div>
       <hr class="form-divider">
-      <div style="margin-bottom:2rem">
-        <h3 style="font-size:1rem;font-weight:700;margin-bottom:.25rem">Categorias de compras</h3>
-        <p style="font-size:.82rem;color:var(--ink3);margin-bottom:1rem">Seções do mercado para organizar a lista.</p>
-        <div id="cfg-cats-compras" style="display:flex;flex-wrap:wrap;gap:.4rem;margin-bottom:.85rem"></div>
-        <div style="display:flex;gap:.5rem">
-          <input id="new-cat-compra" class="prato-filter" placeholder="nova categoria..." style="flex:1"/>
-          <button class="btn-save" id="btn-add-cat-compra">+ Add</button>
-        </div>
-      </div>
-      <hr class="form-divider">
       <div>
         <h3 style="font-size:1rem;font-weight:700;margin-bottom:.25rem">Conexão</h3>
         <p style="font-size:.82rem;color:var(--ink3);margin-bottom:.85rem">Token e Gist ID salvos apenas neste dispositivo.</p>
@@ -398,14 +388,14 @@ function saveConfig(id,token){ GIST_ID=id.trim(); GIST_TOKEN=token.trim(); local
 function clearConfig(){ localStorage.removeItem('cfg_gist_id'); localStorage.removeItem('cfg_gist_token'); GIST_ID=GIST_TOKEN=''; }
 
 // ── State ───────────────────────────────────
-let state = {cardapios:{}, compras:{}, pratos:[], cats_pratos:[], cats_compras:[], item_history:[], last_updated:null};
+let state = {cardapios:{}, compras:{}, pratos:[], cats_pratos:[], item_history:[], last_updated:null};
 let gistFileName = 'cardapio-data.json';
 let weekOffset = 0;
 let editingPratoId = null;
 let mercadoMode = false;
 
+const SECOES = ['Mercado', 'Feira']; // duas seções fixas
 const DEFAULT_CATS_PRATOS  = ['Básicos','Massas','Sopas','Saladas','Assados','Lanches','Acompanhamentos','Doces'];
-const DEFAULT_CATS_COMPRAS = ['Hortifrúti','Grãos e cereais','Laticínios/Ovos','Padaria','Conservas','Temperos','Bebidas','Limpeza','Higiene','Outros'];
 
 const DAYS = [
   {key:'dom',label:'Domingo',  ini:'D'},
@@ -474,7 +464,6 @@ async function gistLoad(){
     state.compras     = p.compras     || {};
     state.pratos      = (p.pratos&&p.pratos.length) ? p.pratos : PRATOS_INICIAIS.map(x=>({...x,id:uid()}));
     state.cats_pratos  = (p.cats_pratos&&p.cats_pratos.length)   ? p.cats_pratos  : [...DEFAULT_CATS_PRATOS];
-    state.cats_compras = (p.cats_compras&&p.cats_compras.length) ? p.cats_compras : [...DEFAULT_CATS_COMPRAS];
     state.item_history = p.item_history || [];
     state.last_updated = p.last_updated || null;
     setDot('ok','Gist conectado');
@@ -482,7 +471,6 @@ async function gistLoad(){
     setDot('err',`erro: ${e.message}`);
     if(!state.pratos.length)       state.pratos      = PRATOS_INICIAIS.map(x=>({...x,id:uid()}));
     if(!state.cats_pratos.length)  state.cats_pratos  = [...DEFAULT_CATS_PRATOS];
-    if(!state.cats_compras.length) state.cats_compras = [...DEFAULT_CATS_COMPRAS];
   }
 }
 
@@ -614,22 +602,28 @@ function renderShop(){
   document.getElementById('shop-prog').textContent=items.length?`${done}/${items.length}`:'';
   const cont=document.getElementById('shop-list');
   if(!items.length){cont.innerHTML='<p class="empty">lista vazia</p>';return;}
-  const cats={};
-  items.forEach(it=>{if(!cats[it.cat])cats[it.cat]=[];cats[it.cat].push(it);});
-  cont.innerHTML=Object.entries(cats).map(([cat,citems])=>
-    `<div class="cat-block"><div class="cat-lbl">${esc(cat)}</div>`+
-    citems.map(it=>`<div class="si" id="si-${it.id}">
-      <div class="si-swipe-right">✓ marcado</div>
-      <div class="si-swipe-left">✎ editar</div>
-      <div class="si-inner">
-        <span class="si-drag" data-id="${it.id}">⠿</span>
-        <div class="si-check ${it.checked?'on':''}" onclick="togShop('${it.id}')">${it.checked?'✓':''}</div>
-        <span class="si-name ${it.checked?'on':''}" onclick="editShopItem('${it.id}')">${esc(it.nome)}</span>
-        <span class="${it.qty?'si-qty':''}" style="${!it.qty?'font-size:.72rem;color:var(--ink3);cursor:pointer;opacity:.5':''}" onclick="editShopItem('${it.id}')">${it.qty||'+ qtd'}</span>
-        <button class="si-del" onclick="delShop('${it.id}')">✕</button>
-      </div>
-    </div>`).join('')+'</div>'
-  ).join('');
+
+  cont.innerHTML = SECOES.map(secao=>{
+    const citems=items.filter(it=>it.cat===secao);
+    const itemsHTML = citems.length
+      ? citems.map(it=>`<div class="si" id="si-${it.id}">
+          <div class="si-swipe-right">✓ marcado</div>
+          <div class="si-swipe-left">✎ editar</div>
+          <div class="si-inner">
+            <span class="si-drag" data-id="${it.id}">⠿</span>
+            <div class="si-check ${it.checked?'on':''}" onclick="togShop('${it.id}')">${it.checked?'✓':''}</div>
+            <span class="si-name ${it.checked?'on':''}" onclick="editShopItem('${it.id}')">${esc(it.nome)}</span>
+            <span onclick="editShopItem('${it.id}')" style="font-size:.72rem;color:${it.qty?'var(--ink3)':'var(--ink3)'};cursor:pointer;${it.qty?'background:var(--raised);border-radius:4px;padding:.2rem .5rem;':'opacity:.4'}">${it.qty||'+ qtd'}</span>
+            <button class="si-del" onclick="delShop('${it.id}')">✕</button>
+          </div>
+        </div>`).join('')
+      : `<p style="font-size:.78rem;color:var(--ink3);padding:.4rem 0;font-style:italic">vazio — arraste itens aqui</p>`;
+
+    return `<div class="cat-block" id="secao-${secao}" data-secao="${secao}">
+      <div class="cat-lbl">${secao}</div>
+      <div class="secao-items" id="items-${secao}" data-secao="${secao}">${itemsHTML}</div>
+    </div>`;
+  }).join('');
 
   if(mercadoMode) cont.classList.add('mercado-mode');
   else cont.classList.remove('mercado-mode');
@@ -642,9 +636,8 @@ function togShop(id){
 }
 function delShop(id){ saveCompras(getCompras().filter(x=>x.id!==id)); renderShop(); }
 
-function addShop(nome, qty='', cat='Outros'){
+function addShop(nome, qty='', cat='Mercado'){
   if(!nome.trim()) return;
-  // track history
   const n=nome.trim();
   state.item_history=state.item_history||[];
   state.item_history=state.item_history.filter(x=>x.toLowerCase()!==n.toLowerCase());
@@ -659,12 +652,12 @@ function addShop(nome, qty='', cat='Outros'){
 function editShopItem(id){
   const s=getCompras(),it=s.find(x=>x.id===id); if(!it)return;
   const row=document.getElementById('si-'+id); if(!row)return;
-  const catsOpts=state.cats_compras.map(c=>`<option${c===it.cat?' selected':''}>${esc(c)}</option>`).join('');
+  const secoesOpts=SECOES.map(c=>`<option${c===it.cat?' selected':''}>${esc(c)}</option>`).join('');
   row.innerHTML=`<div class="si-edit-form">
     <input class="si-edit-input" id="ei-nome-${id}" value="${esc(it.nome)}"/>
     <div class="si-edit-row">
       <input class="si-edit-sm" id="ei-qty-${id}" value="${esc(it.qty)}" placeholder="qtd (opcional)" style="width:100px"/>
-      <select class="si-edit-sm" id="ei-cat-${id}" style="flex:1">${catsOpts}</select>
+      <select class="si-edit-sm" id="ei-cat-${id}" style="flex:1">${secoesOpts}</select>
     </div>
     <div class="si-edit-btns">
       <button onclick="saveShopEdit('${id}')" style="flex:1;background:var(--accent);color:#fff;border:none;border-radius:var(--r-sm);font-family:'Plus Jakarta Sans',sans-serif;font-size:.8rem;font-weight:600;padding:.4rem;cursor:pointer">Salvar</button>
@@ -707,7 +700,7 @@ document.getElementById('btn-gen').onclick=()=>{
           if(!isNaN(numEx)&&!isNaN(numNew)&&unit) ex.qty=`${numEx+numNew} ${unit}`.trim();
         }
       } else {
-        s.push({id:uid(), nome:ing.nome, qty:ing.qty, cat:ing.cat, checked:false});
+        s.push({id:uid(), nome:ing.nome, qty:ing.qty, cat:'Mercado', checked:false});
         existing[key]=s.length-1;
         added++;
       }
@@ -802,31 +795,35 @@ function initDrag(){
     },{passive:true});
   });
   document.addEventListener('touchmove',e=>{
-    if(!dragSrc)return;
+    if(!dragSrc) return;
     const touch=e.touches[0];
     const el=document.elementFromPoint(touch.clientX,touch.clientY);
-    if(!el)return;
-    const target=el.closest('.si');
-    if(target&&target!==dragSrc&&target.id!==dragSrc.id){
-      const list=dragSrc.parentElement;
-      const kids=[...list.children];
-      const srcIdx=kids.indexOf(dragSrc), tgtIdx=kids.indexOf(target);
-      if(srcIdx>-1&&tgtIdx>-1){
-        if(srcIdx<tgtIdx) list.insertBefore(dragSrc,target.nextSibling);
-        else list.insertBefore(dragSrc,target);
-      }
+    if(!el) return;
+    // can drop onto another item OR onto a secao-items container
+    const targetItem=el.closest('.si');
+    const targetSecao=el.closest('.secao-items');
+    if(targetItem && targetItem!==dragSrc){
+      // reorder within same list or move to other list
+      const destList=targetItem.parentElement;
+      destList.insertBefore(dragSrc, targetItem);
+    } else if(targetSecao && !targetSecao.contains(dragSrc)){
+      // drop into empty section
+      targetSecao.appendChild(dragSrc);
     }
   },{passive:true});
   document.addEventListener('touchend',()=>{
-    if(!dragSrc)return;
+    if(!dragSrc) return;
     dragSrc.classList.remove('dragging');
-    // rebuild compras order from DOM
+    // rebuild order from DOM, also update cat based on which secao-items the item is in
     const s=getCompras();
     const newOrder=[];
-    document.querySelectorAll('.si[id^="si-"]').forEach(row=>{
-      const id=row.id.replace('si-','');
-      const it=s.find(x=>x.id===id);
-      if(it) newOrder.push(it);
+    document.querySelectorAll('.secao-items').forEach(container=>{
+      const secao=container.dataset.secao;
+      container.querySelectorAll('.si[id^="si-"]').forEach(row=>{
+        const id=row.id.replace('si-','');
+        const it=s.find(x=>x.id===id);
+        if(it){ it.cat=secao; newOrder.push(it); }
+      });
     });
     if(newOrder.length===s.length){ saveCompras(newOrder); renderShop(); }
     dragSrc=null; dragId=null;
@@ -931,27 +928,20 @@ function populateSelects(){
 function renderConfig(){
   const cp=document.getElementById('cfg-cats-pratos');
   cp.innerHTML=state.cats_pratos.map((c,i)=>`<span style="display:inline-flex;align-items:center;gap:.3rem;background:var(--raised);border:1.5px solid var(--border);border-radius:20px;padding:.25rem .65rem .25rem .75rem;font-size:.82rem;font-weight:500">${esc(c)}<button onclick="removeCat('pratos',${i})" style="background:none;border:none;cursor:pointer;color:var(--ink3);font-size:.9rem;line-height:1;padding:0;display:flex">×</button></span>`).join('');
-  const cc=document.getElementById('cfg-cats-compras');
-  cc.innerHTML=state.cats_compras.map((c,i)=>`<span style="display:inline-flex;align-items:center;gap:.3rem;background:var(--raised);border:1.5px solid var(--border);border-radius:20px;padding:.25rem .65rem .25rem .75rem;font-size:.82rem;font-weight:500">${esc(c)}<button onclick="removeCat('compras',${i})" style="background:none;border:none;cursor:pointer;color:var(--ink3);font-size:.9rem;line-height:1;padding:0;display:flex">×</button></span>`).join('');
 }
 
 function removeCat(tipo,idx){
-  const key=tipo==='pratos'?'cats_pratos':'cats_compras';
-  state[key].splice(idx,1); populateSelects(); renderConfig(); gistSave();
+  state.cats_pratos.splice(idx,1); populateSelects(); renderConfig(); gistSave();
 }
 function addCat(tipo){
-  const inputId=tipo==='pratos'?'new-cat-prato':'new-cat-compra';
-  const key=tipo==='pratos'?'cats_pratos':'cats_compras';
-  const val=document.getElementById(inputId).value.trim();
+  const val=document.getElementById('new-cat-prato').value.trim();
   if(!val)return;
-  if(state[key].includes(val)){alert('Categoria já existe.');return;}
-  state[key].push(val); document.getElementById(inputId).value='';
+  if(state.cats_pratos.includes(val)){alert('Categoria já existe.');return;}
+  state.cats_pratos.push(val); document.getElementById('new-cat-prato').value='';
   populateSelects(); renderConfig(); gistSave();
 }
 document.getElementById('btn-add-cat-prato').onclick=()=>addCat('pratos');
-document.getElementById('btn-add-cat-compra').onclick=()=>addCat('compras');
 document.getElementById('new-cat-prato').onkeydown=e=>{if(e.key==='Enter')addCat('pratos');};
-document.getElementById('new-cat-compra').onkeydown=e=>{if(e.key==='Enter')addCat('compras');};
 
 document.getElementById('btn-open-config').onclick=()=>{
   const panel=document.getElementById('panel-config');
