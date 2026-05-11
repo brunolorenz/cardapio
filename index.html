@@ -290,11 +290,12 @@ header h1 em{color:var(--accent);font-style:normal}
   <div id="panel-compras" class="panel">
     <div class="section">
       <div class="shop-toolbar">
-        <button class="btn-green" id="btn-gen">✦ Gerar</button>
-        <button class="btn-ghost" id="btn-clr">✕ Marcados</button>
-        <button class="btn-ghost" id="btn-print">🖨</button>
-        <button class="btn-ghost" id="btn-mercado-toggle" style="margin-left:auto">🛒 Mercado</button>
-        <button class="btn-save" id="btn-save-shop">↑ Salvar</button>
+        <button class="btn-green" id="btn-gen">✦ Gerar do cardápio</button>
+        <button class="btn-ghost" id="btn-mercado-toggle">🛒 Mercado</button>
+        <span class="shop-prog" id="shop-prog"></span>
+        <button class="btn-ghost" id="btn-clr" title="Limpar marcados" style="padding:.55rem .7rem">🗑</button>
+        <button class="btn-ghost" id="btn-print" title="Imprimir cardápio" style="padding:.55rem .7rem">🖨</button>
+        <button class="btn-save" id="btn-save-shop" title="Salvar" style="padding:.55rem .7rem">↑</button>
       </div>
       <div id="shop-list"><p class="empty">lista vazia</p></div>
       <hr class="form-divider">
@@ -637,16 +638,18 @@ function togShop(id){
 }
 function delShop(id){ saveCompras(getCompras().filter(x=>x.id!==id)); renderShop(); }
 
-function addShop(nome,qty='',cat='Outros'){
-  if(!nome.trim())return;
-  const s=getCompras();
+function addShop(nome, qty='', cat='Outros'){
+  if(!nome.trim()) return;
   // track history
-  if(!state.item_history.includes(nome.trim())){
-    state.item_history.unshift(nome.trim());
-    if(state.item_history.length>30) state.item_history=state.item_history.slice(0,30);
-  }
-  s.push({id:uid(),nome:nome.trim(),qty,cat,checked:false});
-  saveCompras(s); renderShop();
+  const n=nome.trim();
+  state.item_history=state.item_history||[];
+  state.item_history=state.item_history.filter(x=>x.toLowerCase()!==n.toLowerCase());
+  state.item_history.unshift(n);
+  if(state.item_history.length>30) state.item_history=state.item_history.slice(0,30);
+  const s=getCompras();
+  s.push({id:uid(), nome:n, qty, cat, checked:false});
+  saveCompras(s);
+  renderShop();
 }
 
 function editShopItem(id){
@@ -680,34 +683,36 @@ function saveShopEdit(id){
 // ── Gerar do cardápio (consolida ingredientes) ──
 document.getElementById('btn-gen').onclick=()=>{
   const cardapio=getCardapio();
-  const existing={}; // nome_lower -> item index
+  const allDishes=Object.values(cardapio).flatMap(slots=>['almoco','janta'].map(sl=>slots[sl]).filter(Boolean));
+  if(!allDishes.length){ alert('Nenhum prato no cardápio desta semana.'); return; }
+
   const s=getCompras();
-  s.forEach((it,i)=>{existing[it.nome.toLowerCase()]=i;});
+  const existing={}; // nome_lower -> index in s
+  s.forEach((it,i)=>{ existing[it.nome.toLowerCase()]=i; });
   let added=0;
 
-  Object.values(cardapio).forEach(slots=>{
-    ['almoco','janta'].forEach(slot=>{
-      const dish=slots[slot]; if(!dish)return;
-      (dish.ingredientes||[]).forEach(ing=>{
-        const key=ing.nome.toLowerCase();
-        if(key in existing){
-          // tenta somar quantidade se numérica
-          const ex=s[existing[key]];
-          if(ex.qty && ing.qty){
-            const numEx=parseFloat(ex.qty), numNew=parseFloat(ing.qty);
-            const unit=(ex.qty.match(/[a-zA-ZçãÃõÕ]+/)||[''])[0];
-            if(!isNaN(numEx)&&!isNaN(numNew)&&unit) ex.qty=`${numEx+numNew} ${unit}`.trim();
-          }
-        } else {
-          const item={id:uid(),nome:ing.nome,qty:ing.qty,cat:ing.cat,checked:false};
-          s.push(item); existing[key]=s.length-1; added++;
+  allDishes.forEach(dish=>{
+    (dish.ingredientes||[]).forEach(ing=>{
+      const key=ing.nome.toLowerCase();
+      if(key in existing){
+        // tenta somar quantidade numérica
+        const ex=s[existing[key]];
+        if(ex.qty && ing.qty){
+          const numEx=parseFloat(ex.qty), numNew=parseFloat(ing.qty);
+          const unit=(ex.qty.match(/[a-zA-ZçãõÃÕ]+/)||[''])[0];
+          if(!isNaN(numEx)&&!isNaN(numNew)&&unit) ex.qty=`${numEx+numNew} ${unit}`.trim();
         }
-      });
+      } else {
+        s.push({id:uid(), nome:ing.nome, qty:ing.qty, cat:ing.cat, checked:false});
+        existing[key]=s.length-1;
+        added++;
+      }
     });
   });
+
   saveCompras(s);
-  if(!added&&!Object.keys(existing).length) alert('Cardápio vazio.');
-  else renderShop();
+  renderShop();
+  if(added===0) alert('Todos os ingredientes já estavam na lista.');
 };
 
 // ── Recents ─────────────────────────────────
@@ -728,11 +733,17 @@ document.getElementById('ni-name').addEventListener('focus',()=>renderRecents(do
 
 // ── Add shop ────────────────────────────────
 document.getElementById('btn-add-shop').onclick=()=>{
-  const v=document.getElementById('ni-name').value;
-  if(!v.trim())return;
-  addShop(v); document.getElementById('ni-name').value=''; renderRecents('');
+  const inp=document.getElementById('ni-name');
+  const v=inp.value.trim();
+  if(!v) return;
+  addShop(v);
+  inp.value='';
+  renderRecents('');
+  inp.focus();
 };
-document.getElementById('ni-name').onkeydown=e=>{if(e.key==='Enter')document.getElementById('btn-add-shop').click();};
+document.getElementById('ni-name').addEventListener('keydown', e=>{
+  if(e.key==='Enter'){ e.preventDefault(); document.getElementById('btn-add-shop').click(); }
+});
 
 // ── Mercado mode ────────────────────────────
 document.getElementById('btn-mercado-toggle').onclick=()=>{
