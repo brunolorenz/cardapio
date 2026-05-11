@@ -64,23 +64,48 @@ header h1 em{color:var(--accent);font-style:normal}
 .btn-orange{background:var(--orange);color:#fff;border:none;border-radius:var(--r-sm);font-family:'Plus Jakarta Sans',sans-serif;font-size:.8rem;font-weight:600;padding:.55rem 1rem;cursor:pointer;transition:opacity .15s}
 .btn-orange:active{opacity:.85}
 
-/* Days */
+/* Days — modo expandido (padrão) e compacto */
 .days-grid{display:flex;flex-direction:column;gap:.65rem}
+.days-grid.compact{display:grid;grid-template-columns:repeat(2,1fr);gap:.5rem}
+
 .day-card{background:var(--surface);border:1.5px solid var(--border);border-radius:var(--r);overflow:hidden}
 .day-head{display:flex;align-items:center;gap:.75rem;padding:.7rem 1rem;background:var(--raised);border-bottom:1.5px solid var(--border)}
+.days-grid.compact .day-head{padding:.55rem .75rem;gap:.5rem}
+
 .day-ini{width:32px;height:32px;border-radius:50%;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.85rem;flex-shrink:0}
+.days-grid.compact .day-ini{width:26px;height:26px;font-size:.75rem}
+
+.day-name-wrap{display:flex;flex-direction:column}
 .day-name{font-size:.95rem;font-weight:700}
+.days-grid.compact .day-name{font-size:.82rem}
 .day-date{font-size:.75rem;color:var(--ink3);margin-left:auto}
+.days-grid.compact .day-date{font-size:.65rem}
+
 .meal-slot{padding:.7rem 1rem;border-bottom:1px solid var(--border)}
 .meal-slot:last-child{border-bottom:none}
+.days-grid.compact .meal-slot{padding:.45rem .75rem}
+
 .slot-lbl{font-size:.68rem;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--ink3);margin-bottom:.4rem}
+.days-grid.compact .slot-lbl{font-size:.58rem;margin-bottom:.25rem}
+
 .meal-chip{display:flex;align-items:center;gap:.5rem;background:var(--accent-bg);border:1.5px solid var(--accent-lt);border-radius:var(--r-sm);padding:.5rem .75rem;cursor:pointer;transition:border-color .15s}
 .meal-chip:active{border-color:var(--accent)}
+.days-grid.compact .meal-chip{padding:.35rem .5rem}
+
 .chip-name{flex:1;font-size:.9rem;font-weight:500}
+.days-grid.compact .chip-name{font-size:.78rem}
+
 .chip-del{background:none;border:none;cursor:pointer;color:var(--ink3);font-size:1.1rem;width:28px;height:28px;display:flex;align-items:center;justify-content:center;border-radius:50%;transition:background .12s,color .12s}
+.days-grid.compact .chip-del{width:20px;height:20px;font-size:.85rem}
 .chip-del:active{background:var(--danger-bg);color:var(--danger)}
+
 .add-btn{width:100%;background:none;border:1.5px dashed var(--border);border-radius:var(--r-sm);color:var(--ink3);font-family:'Plus Jakarta Sans',sans-serif;font-size:.85rem;font-weight:500;padding:.55rem .75rem;cursor:pointer;text-align:left;transition:border-color .15s,color .15s}
+.days-grid.compact .add-btn{font-size:.72rem;padding:.35rem .5rem}
 .add-btn:active{border-color:var(--accent);color:var(--accent)}
+
+/* Toggle compacto */
+.btn-compact{background:none;border:1.5px solid var(--border);border-radius:var(--r-sm);font-size:.78rem;padding:0 .65rem;height:36px;cursor:pointer;color:var(--ink3);transition:all .15s;flex-shrink:0}
+.btn-compact.active{background:var(--accent-bg);border-color:var(--accent);color:var(--accent)}
 
 /* Modal (slides from top) */
 .overlay{position:fixed;inset:0;background:rgba(24,24,27,.4);display:flex;align-items:flex-start;justify-content:center;z-index:200;opacity:0;pointer-events:none;transition:opacity .2s}
@@ -203,7 +228,22 @@ header h1 em{color:var(--accent);font-style:normal}
   font-size:.8rem;color:var(--ink3);font-weight:500;flex-shrink:0;
 }
 
-/* Add item */
+/* Check animation */
+@keyframes checkPop{
+  0%{transform:scale(1)}
+  40%{transform:scale(1.25)}
+  70%{transform:scale(.92)}
+  100%{transform:scale(1)}
+}
+.si-check.pop{ animation:checkPop .25s ease; }
+.mo-check.pop{ animation:checkPop .25s ease; }
+
+/* Section counter badge */
+.secao-count{
+  font-size:.65rem;font-weight:600;
+  background:var(--raised);border-radius:10px;
+  padding:.1rem .45rem;color:var(--ink3);margin-left:.4rem;
+}
 .add-item-row{display:flex;gap:.5rem;margin-bottom:.4rem}
 .add-item-row input{flex:1;background:var(--surface);border:1.5px solid var(--border);border-radius:var(--r-sm);font-family:'Plus Jakarta Sans',sans-serif;font-size:.95rem;padding:.6rem .85rem;outline:none;color:var(--ink)}
 .add-item-row input:focus{border-color:var(--accent)}
@@ -338,6 +378,7 @@ header h1 em{color:var(--accent);font-style:normal}
         <button class="nav-btn" id="prev-w">←</button>
         <span id="week-label"></span>
         <button class="nav-btn" id="next-w">→</button>
+        <button class="btn-compact" id="btn-compact" title="Modo compacto">⊞</button>
         <button class="btn-icon" id="btn-copy-week" title="Repetir semana anterior" style="background:var(--orange);border-color:var(--orange);color:#fff">↩</button>
         <button class="btn-icon btn-icon-accent" id="btn-save" title="Salvar">↑</button>
       </div>
@@ -380,7 +421,7 @@ header h1 em{color:var(--accent);font-style:normal}
   <div id="panel-pratos" class="panel">
     <div class="section">
       <div class="pratos-toolbar">
-        <input class="prato-filter" id="prato-filter" placeholder="buscar prato..."/>
+        <input class="prato-filter" id="prato-filter" placeholder="buscar por prato ou ingrediente..."/>
         <select class="prato-filter" id="prato-cat-filter" style="flex:0 0 auto;width:auto"></select>
       </div>
       <div class="prato-list" id="prato-list"><p class="empty">carregando...</p></div>
@@ -574,11 +615,15 @@ const getCompras  = ()=>state.compras[weekKey()]||[];
 const saveCompras = c=>{ state.compras[weekKey()]=c; scheduleAutosave(); };
 
 // ── Render: Cardápio ───────────────────────
+let compactMode = localStorage.getItem('compact_mode')==='1';
+
 function renderDays(){
   const dates=weekDates(), off=weekOffset;
   const tag=off===0?'esta semana':off===1?'próx. semana':off===-1?'sem. passada':'';
   document.getElementById('week-label').textContent=(tag?tag+' · ':'')+fmtD(dates[0])+'–'+fmtD(dates[6]);
   const cardapio=getCardapio(), grid=document.getElementById('days-grid');
+  grid.className='days-grid'+(compactMode?' compact':'');
+  document.getElementById('btn-compact').classList.toggle('active',compactMode);
   grid.innerHTML='';
   DAYS.forEach((day,i)=>{
     const slots=cardapio[day.key]||{almoco:null,janta:null};
@@ -586,10 +631,14 @@ function renderDays(){
     card.innerHTML=`
       <div class="day-head">
         <div class="day-ini">${esc(day.ini)}</div>
-        <div><div class="day-name">${esc(day.label)}</div><div class="day-date">${fmtD(dates[i])}</div></div>
+        <div class="day-name-wrap">
+          <div class="day-name">${esc(day.label)}</div>
+          ${!compactMode?`<div class="day-date">${fmtD(dates[i])}</div>`:''}
+        </div>
+        ${compactMode?`<div class="day-date" style="margin-left:auto">${fmtD(dates[i])}</div>`:''}
       </div>
-      <div class="meal-slot"><div class="slot-lbl">☀ Almoço</div>${chipHTML(slots.almoco,day.key,'almoco')}</div>
-      <div class="meal-slot"><div class="slot-lbl">🌙 Janta</div>${chipHTML(slots.janta,day.key,'janta')}</div>`;
+      <div class="meal-slot"><div class="slot-lbl">☀</div>${chipHTML(slots.almoco,day.key,'almoco')}</div>
+      <div class="meal-slot"><div class="slot-lbl">🌙</div>${chipHTML(slots.janta,day.key,'janta')}</div>`;
     grid.appendChild(card);
   });
   renderHistory();
@@ -701,7 +750,7 @@ function renderShop(){
       : `<p style="font-size:.78rem;color:var(--ink3);padding:.4rem 0;font-style:italic">vazio — arraste itens aqui</p>`;
 
     return `<div class="cat-block" id="secao-${secao}" data-secao="${secao}">
-      <div class="cat-lbl">${secao}</div>
+      <div class="cat-lbl">${secao}<span class="secao-count">${citems.length}</span></div>
       <div class="secao-items" id="items-${secao}" data-secao="${secao}">${itemsHTML}</div>
     </div>`;
   }).join('');
@@ -710,7 +759,14 @@ function renderShop(){
 }
 
 function togShop(id){
-  const s=getCompras(),it=s.find(x=>x.id===id); if(it)it.checked=!it.checked; saveCompras(s); renderShop();
+  const s=getCompras(), it=s.find(x=>x.id===id);
+  if(it) it.checked=!it.checked;
+  saveCompras(s);
+  // animação + vibração
+  const check=document.querySelector(`#si-${id} .si-check`);
+  if(check){ check.classList.remove('pop'); void check.offsetWidth; check.classList.add('pop'); }
+  if(navigator.vibrate) navigator.vibrate(25);
+  renderShop();
 }
 function delShop(id){ saveCompras(getCompras().filter(x=>x.id!==id)); renderShop(); }
 
@@ -850,8 +906,9 @@ function togMercado(id){
   const s=getCompras(), it=s.find(x=>x.id===id);
   if(it) it.checked=!it.checked;
   saveCompras(s);
+  if(navigator.vibrate) navigator.vibrate(25);
   renderMercadoOverlay();
-  renderShop(); // keep underlying list in sync
+  renderShop();
 }
 
 function openMercado(){
@@ -953,21 +1010,41 @@ document.getElementById('btn-clr').onclick=()=>{
 function renderPratos(){
   const q=document.getElementById('prato-filter').value.toLowerCase();
   const catF=document.getElementById('prato-cat-filter').value;
-  const list=state.pratos.filter(p=>(!q||p.nome.toLowerCase().includes(q))&&(!catF||p.categoria===catF));
+  const list=state.pratos.filter(p=>{
+    if(catF && p.categoria!==catF) return false;
+    if(!q) return true;
+    // busca por nome do prato OU por nome de ingrediente
+    return p.nome.toLowerCase().includes(q) ||
+           (p.ingredientes||[]).some(i=>i.nome.toLowerCase().includes(q));
+  });
   const cont=document.getElementById('prato-list');
   if(!list.length){cont.innerHTML='<p class="empty">nenhum prato encontrado</p>';return;}
-  cont.innerHTML=list.map(p=>`
+  cont.innerHTML=list.map(p=>{
+    // destaca ingrediente se a busca bateu no ingrediente mas não no nome
+    const matchedByIng = q && !p.nome.toLowerCase().includes(q);
+    const matchedIngs = matchedByIng
+      ? (p.ingredientes||[]).filter(i=>i.nome.toLowerCase().includes(q)).map(i=>esc(i.nome))
+      : [];
+    const ingsHTML=(p.ingredientes||[]).map(i=>{
+      const nome=esc(i.nome);
+      const highlighted=matchedIngs.includes(nome)
+        ? `<span style="color:var(--accent);font-weight:600">${nome}</span>`
+        : nome;
+      return `${highlighted} <span style="color:var(--border)">·</span> ${esc(i.qty)}`;
+    }).join(' &nbsp; ');
+    return `
     <div class="prato-card ${editingPratoId===p.id?'editing':''}">
       <div class="prato-info">
         <div class="prato-nome">${esc(p.nome)}</div>
         <div class="prato-cat-tag">${esc(p.categoria)}</div>
-        <div class="prato-ings">${(p.ingredientes||[]).map(i=>`${esc(i.nome)} <span style="color:var(--border)">·</span> ${esc(i.qty)}`).join(' &nbsp; ')}</div>
+        <div class="prato-ings">${ingsHTML}</div>
       </div>
       <div class="prato-actions">
         <button onclick="editPrato('${p.id}')">✎ editar</button>
         <button class="btn-del" onclick="deletePrato('${p.id}')">✕ excluir</button>
       </div>
-    </div>`).join('');
+    </div>`;
+  }).join('');
 }
 
 function parseIngredientes(txt){ return txt.trim().split('\n').filter(l=>l.trim()).map(l=>{const p=l.split(',').map(s=>s.trim());return{nome:p[0]||'',qty:p[1]||'',cat:p[2]||'Outros'};}).filter(i=>i.nome); }
@@ -1080,6 +1157,11 @@ document.querySelectorAll('.tab').forEach(btn=>{
   };
 });
 
+document.getElementById('btn-compact').onclick=()=>{
+  compactMode=!compactMode;
+  localStorage.setItem('compact_mode', compactMode?'1':'0');
+  renderDays();
+};
 document.getElementById('prev-w').onclick=()=>{weekOffset--;renderDays();};
 document.getElementById('next-w').onclick=()=>{weekOffset++;renderDays();};
 document.getElementById('btn-save').onclick=()=>{ clearTimeout(autosaveTimer); gistSave(); };
