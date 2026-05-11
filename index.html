@@ -559,11 +559,19 @@ async function gistSave(){
   document.querySelectorAll('.btn-save').forEach(b=>b.disabled=false);
 }
 
+// ── Autosave com debounce de 60s ───────────
+let autosaveTimer=null;
+function scheduleAutosave(){
+  clearTimeout(autosaveTimer);
+  setDot('spin','não salvo...');
+  autosaveTimer=setTimeout(()=>{ gistSave(); }, 60000);
+}
+
 // ── State helpers ──────────────────────────
 const getCardapio = ()=>state.cardapios[weekKey()]||{};
-const saveCardapio= c=>{state.cardapios[weekKey()]=c;};
+const saveCardapio= c=>{ state.cardapios[weekKey()]=c; scheduleAutosave(); };
 const getCompras  = ()=>state.compras[weekKey()]||[];
-const saveCompras = c=>{state.compras[weekKey()]=c;};
+const saveCompras = c=>{ state.compras[weekKey()]=c; scheduleAutosave(); };
 
 // ── Render: Cardápio ───────────────────────
 function renderDays(){
@@ -1074,8 +1082,21 @@ document.querySelectorAll('.tab').forEach(btn=>{
 
 document.getElementById('prev-w').onclick=()=>{weekOffset--;renderDays();};
 document.getElementById('next-w').onclick=()=>{weekOffset++;renderDays();};
-document.getElementById('btn-save').onclick=gistSave;
-document.getElementById('btn-save-shop').onclick=gistSave;
+document.getElementById('btn-save').onclick=()=>{ clearTimeout(autosaveTimer); gistSave(); };
+document.getElementById('btn-save-shop').onclick=()=>{ clearTimeout(autosaveTimer); gistSave(); };
+
+// Tenta salvar ao fechar/sair do app
+window.addEventListener('beforeunload', ()=>{
+  if(autosaveTimer){ clearTimeout(autosaveTimer); gistSave(); }
+});
+
+// Salva ao voltar para o app (troca de aba ou desbloqueio do celular)
+document.addEventListener('visibilitychange', ()=>{
+  if(document.visibilityState==='hidden' && autosaveTimer){
+    clearTimeout(autosaveTimer);
+    gistSave();
+  }
+});
 
 // ── Print ───────────────────────────────────
 function buildPrintSheet(){
