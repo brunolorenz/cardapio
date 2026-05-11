@@ -85,6 +85,23 @@ header h1 em{color:var(--accent);font-style:normal}
 .meal-slot:last-child{border-bottom:none}
 .days-grid.compact .meal-slot{padding:.45rem .75rem}
 
+/* Slot extra — colapsado por padrão */
+.slot-extra-toggle{
+  width:100%;background:none;border:none;
+  font-family:'Plus Jakarta Sans',sans-serif;
+  font-size:.68rem;font-weight:600;letter-spacing:.06em;
+  text-transform:uppercase;color:var(--ink3);
+  padding:.5rem 1rem;text-align:left;cursor:pointer;
+  display:flex;align-items:center;gap:.4rem;
+  border-top:1px dashed var(--border);
+  transition:color .15s;
+}
+.slot-extra-toggle:active{color:var(--accent)}
+.slot-extra-toggle .tog-arrow{transition:transform .2s;display:inline-block}
+.slot-extra-toggle.open .tog-arrow{transform:rotate(90deg)}
+.slot-extra-body{display:none;padding:.5rem 1rem .7rem}
+.slot-extra-body.open{display:block}
+
 .slot-lbl{font-size:.68rem;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--ink3);margin-bottom:.4rem}
 .days-grid.compact .slot-lbl{font-size:.58rem;margin-bottom:.25rem}
 
@@ -580,6 +597,20 @@ async function gistLoad(){
     state.cats_pratos  = (p.cats_pratos&&p.cats_pratos.length)   ? p.cats_pratos  : [...DEFAULT_CATS_PRATOS];
     state.item_history = p.item_history || [];
     state.last_updated = p.last_updated || null;
+
+    // ── Migração: Hortifrúti → Feira nos ingredientes dos pratos ──
+    let migrated=0;
+    state.pratos.forEach(prato=>{
+      (prato.ingredientes||[]).forEach(ing=>{
+        if(ing.cat==='Hortifrúti'){ ing.cat='Feira'; migrated++; }
+      });
+    });
+    if(migrated>0){
+      console.log(`Migração: ${migrated} ingredientes → Feira. Salvando...`);
+      setDot('spin',`migrando ${migrated} ingredientes...`);
+      await gistSave();
+    }
+
     setDot('ok','Gist conectado');
   }catch(e){
     setDot('err',`erro: ${e.message}`);
@@ -626,7 +657,8 @@ function renderDays(){
   document.getElementById('btn-compact').classList.toggle('active',compactMode);
   grid.innerHTML='';
   DAYS.forEach((day,i)=>{
-    const slots=cardapio[day.key]||{almoco:null,janta:null};
+    const slots=cardapio[day.key]||{almoco:null,janta:null,extra:null};
+    const extraOpen=slots.extra ? 'open' : '';
     const card=document.createElement('div'); card.className='day-card';
     card.innerHTML=`
       <div class="day-head">
@@ -638,7 +670,13 @@ function renderDays(){
         ${compactMode?`<div class="day-date" style="margin-left:auto">${fmtD(dates[i])}</div>`:''}
       </div>
       <div class="meal-slot"><div class="slot-lbl">☀</div>${chipHTML(slots.almoco,day.key,'almoco')}</div>
-      <div class="meal-slot"><div class="slot-lbl">🌙</div>${chipHTML(slots.janta,day.key,'janta')}</div>`;
+      <div class="meal-slot"><div class="slot-lbl">🌙</div>${chipHTML(slots.janta,day.key,'janta')}</div>
+      <button class="slot-extra-toggle ${extraOpen}" id="tog-${day.key}" onclick="toggleExtra('${day.key}')">
+        <span class="tog-arrow">›</span> extra
+      </button>
+      <div class="slot-extra-body ${extraOpen}" id="extra-${day.key}">
+        ${chipHTML(slots.extra,day.key,'extra')}
+      </div>`;
     grid.appendChild(card);
   });
   renderHistory();
@@ -648,8 +686,17 @@ function chipHTML(dish,dk,slot){
   if(dish) return `<div class="meal-chip" onclick="openModal('${dk}','${slot}')"><span class="chip-name">${esc(dish.nome)}</span><button class="chip-del" onclick="event.stopPropagation();rmMeal('${dk}','${slot}')">✕</button></div>`;
   return `<button class="add-btn" onclick="openModal('${dk}','${slot}')">+ escolher</button>`;
 }
+function toggleExtra(dk){
+  const tog=document.getElementById('tog-'+dk);
+  const body=document.getElementById('extra-'+dk);
+  tog.classList.toggle('open');
+  body.classList.toggle('open');
+}
+
 function rmMeal(dk,slot){
-  const c=getCardapio(); if(!c[dk])c[dk]={almoco:null,janta:null}; c[dk][slot]=null; saveCardapio(c); renderDays();
+  const c=getCardapio();
+  if(!c[dk])c[dk]={almoco:null,janta:null,extra:null};
+  c[dk][slot]=null; saveCardapio(c); renderDays();
 }
 
 // ── History ─────────────────────────────────
@@ -666,7 +713,7 @@ function renderHistory(){
     const label=fmtD(dates[0])+'–'+fmtD(dates[6]);
     const daysHTML=DAYS.map((day,i)=>{
       const slots=w.cardapio[day.key]||{};
-      const meals=[slots.almoco?.nome, slots.janta?.nome].filter(Boolean);
+      const meals=[slots.almoco?.nome, slots.janta?.nome, slots.extra?.nome].filter(Boolean);
       if(!meals.length) return '';
       return `<div class="history-day"><span class="history-day-name">${esc(day.label.slice(0,3))}</span><span class="history-meals">${meals.map(esc).join(' · ')}</span></div>`;
     }).join('');
@@ -684,6 +731,7 @@ document.getElementById('btn-copy-week').onclick=()=>{
     copy[dk]={
       almoco: slots.almoco ? {...slots.almoco} : null,
       janta:  slots.janta  ? {...slots.janta}  : null,
+      extra:  slots.extra  ? {...slots.extra}  : null,
     };
   }
   saveCardapio(copy); renderDays();
@@ -693,7 +741,8 @@ document.getElementById('btn-copy-week').onclick=()=>{
 let mTarget=null, mDirty=false;
 function openModal(dk,slot){
   mTarget={dk,slot}; mDirty=false;
-  document.getElementById('modal-title').textContent=slot==='almoco'?'☀ Almoço':'🌙 Janta';
+  document.getElementById('modal-title').textContent=
+    slot==='almoco'?'☀ Almoço':slot==='janta'?'🌙 Janta':'+ Extra';
   document.getElementById('modal-q').value='';
   renderModal('');
   document.getElementById('overlay').classList.add('open');
@@ -721,7 +770,7 @@ function renderModal(q){
 
 function pickDish(id){
   const dish=state.pratos.find(d=>d.id===id); if(!dish||!mTarget)return;
-  const c=getCardapio(); if(!c[mTarget.dk])c[mTarget.dk]={almoco:null,janta:null};
+  const c=getCardapio(); if(!c[mTarget.dk])c[mTarget.dk]={almoco:null,janta:null,extra:null};
   c[mTarget.dk][mTarget.slot]=dish; saveCardapio(c); closeModal(true); renderDays();
 }
 
@@ -814,7 +863,7 @@ function saveShopEdit(id){
 // ── Gerar do cardápio (consolida ingredientes) ──
 document.getElementById('btn-gen').onclick=()=>{
   const cardapio=getCardapio();
-  const allDishes=Object.values(cardapio).flatMap(slots=>['almoco','janta'].map(sl=>slots[sl]).filter(Boolean));
+  const allDishes=Object.values(cardapio).flatMap(slots=>['almoco','janta','extra'].map(sl=>slots[sl]).filter(Boolean));
   if(!allDishes.length){ alert('Nenhum prato no cardápio desta semana.'); return; }
 
   const s=getCompras();
@@ -1189,7 +1238,8 @@ function buildPrintSheet(){
     const slots=cardapio[day.key]||{};
     const almoco=slots.almoco?esc(slots.almoco.nome):'<span class="p-empty">—</span>';
     const janta=slots.janta?esc(slots.janta.nome):'<span class="p-empty">—</span>';
-    return `<div class="p-day"><div class="p-day-name">${esc(day.label)} <span style="font-weight:400;color:#666">${fmtD(dates[i])}</span></div><div class="p-slot"><span class="p-slot-lbl">Almoço</span><span>${almoco}</span></div><div class="p-slot"><span class="p-slot-lbl">Janta</span><span>${janta}</span></div></div>`;
+    const extraLine=slots.extra?`<div class="p-slot"><span class="p-slot-lbl">Extra</span><span>${esc(slots.extra.nome)}</span></div>`:'';
+    return `<div class="p-day"><div class="p-day-name">${esc(day.label)} <span style="font-weight:400;color:#666">${fmtD(dates[i])}</span></div><div class="p-slot"><span class="p-slot-lbl">Almoço</span><span>${almoco}</span></div><div class="p-slot"><span class="p-slot-lbl">Janta</span><span>${janta}</span></div>${extraLine}</div>`;
   }).join('');
   document.getElementById('print-sheet').innerHTML=`<h1>Cardápio da semana</h1><p class="p-week">${periodo}</p>${diasHTML}`;
 }
