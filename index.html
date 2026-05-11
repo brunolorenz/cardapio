@@ -140,11 +140,68 @@ header h1 em{color:var(--accent);font-style:normal}
 .si-del{background:none;border:none;cursor:pointer;color:var(--ink3);font-size:.9rem;width:30px;height:30px;display:flex;align-items:center;justify-content:center;border-radius:var(--r-sm);transition:color .15s,background .15s}
 .si-del:active{color:var(--danger);background:var(--danger-bg)}
 
-/* Mercado mode */
-.mercado-mode .si-drag,.mercado-mode .si-del,.mercado-mode .si-qty{display:none}
-.mercado-mode .si-check{width:28px;height:28px;border-radius:8px;border-width:2.5px}
-.mercado-mode .si-name{font-size:1.05rem}
-.mercado-mode .cat-lbl{font-size:.75rem}
+/* Mercado overlay */
+#mercado-overlay{
+  display:none;
+  position:fixed;inset:0;z-index:300;
+  background:#fff;
+  flex-direction:column;
+  overflow:hidden;
+}
+#mercado-overlay.open{ display:flex; }
+
+#mercado-header{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:.9rem 1.25rem;
+  border-bottom:1px solid var(--border);
+  flex-shrink:0;
+}
+#mercado-header h2{
+  font-size:1rem;font-weight:700;color:var(--ink);
+}
+#mercado-close{
+  background:var(--raised);border:none;border-radius:50%;
+  width:32px;height:32px;font-size:1rem;cursor:pointer;
+  color:var(--ink2);display:flex;align-items:center;justify-content:center;
+}
+#mercado-prog{
+  font-size:.78rem;color:var(--ink3);font-weight:500;
+}
+#mercado-body{
+  flex:1;overflow-y:auto;padding:.5rem 0;
+}
+
+/* Section label inside overlay */
+.mo-secao{
+  font-size:.65rem;font-weight:700;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--ink3);
+  padding:.75rem 1.25rem .3rem;
+}
+/* Item row inside overlay */
+.mo-item{
+  display:flex;align-items:center;gap:.9rem;
+  padding:.8rem 1.25rem;
+  border-bottom:1px solid var(--border);
+  cursor:pointer;
+  transition:background .1s;
+  -webkit-tap-highlight-color:transparent;
+}
+.mo-item:active{ background:var(--raised); }
+.mo-item:last-child{ border-bottom:none; }
+.mo-check{
+  width:28px;height:28px;border:2px solid var(--border);
+  border-radius:8px;flex-shrink:0;display:flex;
+  align-items:center;justify-content:center;
+  font-size:.85rem;color:transparent;transition:all .15s;
+}
+.mo-check.on{ background:var(--green);border-color:var(--green);color:#fff; }
+.mo-name{
+  flex:1;font-size:1.05rem;font-weight:500;color:var(--ink);line-height:1.3;
+}
+.mo-name.on{ text-decoration:line-through;color:var(--ink3);font-weight:400; }
+.mo-qty{
+  font-size:.8rem;color:var(--ink3);font-weight:500;flex-shrink:0;
+}
 
 /* Add item */
 .add-item-row{display:flex;gap:.5rem;margin-bottom:.4rem}
@@ -368,6 +425,19 @@ header h1 em{color:var(--accent);font-style:normal}
 
 </div><!-- /app -->
 <div id="print-sheet"></div>
+
+<!-- Mercado overlay -->
+<div id="mercado-overlay">
+  <div id="mercado-header">
+    <div>
+      <h2>🛒 Modo Mercado</h2>
+      <div id="mercado-prog"></div>
+    </div>
+    <button id="mercado-close">✕</button>
+  </div>
+  <div id="mercado-body"></div>
+</div>
+
 </div><!-- /main-app -->
 
 <!-- Prato picker modal -->
@@ -396,7 +466,6 @@ let state = {cardapios:{}, compras:{}, pratos:[], cats_pratos:[], item_history:[
 let gistFileName = 'cardapio-data.json';
 let weekOffset = 0;
 let editingPratoId = null;
-let mercadoMode = false;
 
 const SECOES = ['Mercado', 'Feira']; // duas seções fixas
 const DEFAULT_CATS_PRATOS  = ['Básicos','Massas','Sopas','Saladas','Assados','Lanches','Acompanhamentos','Doces'];
@@ -629,9 +698,6 @@ function renderShop(){
     </div>`;
   }).join('');
 
-  if(mercadoMode) cont.classList.add('mercado-mode');
-  else cont.classList.remove('mercado-mode');
-
   initSwipe(); initDrag();
 }
 
@@ -747,14 +813,49 @@ document.getElementById('ni-name').addEventListener('keydown', e=>{
 });
 
 // ── Mercado mode ────────────────────────────
-document.getElementById('btn-mercado-toggle').onclick=()=>{
-  mercadoMode=!mercadoMode;
-  const btn=document.getElementById('btn-mercado-toggle');
-  btn.style.background=mercadoMode?'var(--orange)':'';
-  btn.style.color=mercadoMode?'#fff':'';
-  btn.style.borderColor=mercadoMode?'var(--orange)':'';
-  renderShop();
-};
+function renderMercadoOverlay(){
+  const items=getCompras();
+  const done=items.filter(x=>x.checked).length;
+  document.getElementById('mercado-prog').textContent=
+    items.length ? `${done} de ${items.length} marcados` : 'lista vazia';
+
+  const body=document.getElementById('mercado-body');
+  if(!items.length){
+    body.innerHTML='<p style="padding:1.5rem 1.25rem;color:var(--ink3);font-size:.9rem">Lista vazia — adicione itens na aba Compras.</p>';
+    return;
+  }
+
+  body.innerHTML = SECOES.map(secao=>{
+    const citems=items.filter(x=>x.cat===secao);
+    if(!citems.length) return '';
+    return `<div class="mo-secao">${secao}</div>`+
+      citems.map(it=>`
+        <div class="mo-item" onclick="togMercado('${it.id}')">
+          <div class="mo-check ${it.checked?'on':''}">${it.checked?'✓':''}</div>
+          <span class="mo-name ${it.checked?'on':''}">${esc(it.nome)}</span>
+          ${it.qty?`<span class="mo-qty">${esc(it.qty)}</span>`:''}
+        </div>`).join('');
+  }).join('');
+}
+
+function togMercado(id){
+  const s=getCompras(), it=s.find(x=>x.id===id);
+  if(it) it.checked=!it.checked;
+  saveCompras(s);
+  renderMercadoOverlay();
+  renderShop(); // keep underlying list in sync
+}
+
+function openMercado(){
+  renderMercadoOverlay();
+  document.getElementById('mercado-overlay').classList.add('open');
+}
+function closeMercado(){
+  document.getElementById('mercado-overlay').classList.remove('open');
+}
+
+document.getElementById('btn-mercado-toggle').onclick=openMercado;
+document.getElementById('mercado-close').onclick=closeMercado;
 
 // ── Swipe gestures ──────────────────────────
 function initSwipe(){
