@@ -379,7 +379,10 @@ header h1 em{color:var(--accent);font-style:normal}
 
   <div class="status-bar">
     <span><span class="dot spin" id="dot-gist"></span><span id="st-gist">conectando...</span></span>
-    <button id="btn-open-config" style="margin-left:auto;background:none;border:1.5px solid var(--border);border-radius:var(--r-sm);font-family:'Plus Jakarta Sans',sans-serif;font-size:.75rem;font-weight:600;color:var(--ink2);cursor:pointer;padding:.25rem .65rem">⚙ Configurar</button>
+    <div style="display:flex;gap:.4rem;margin-left:auto">
+      <button id="btn-open-config" style="background:none;border:1.5px solid var(--border);border-radius:var(--r-sm);font-family:'Plus Jakarta Sans',sans-serif;font-size:.75rem;font-weight:600;color:var(--ink2);cursor:pointer;padding:.25rem .65rem">⚙ Configurar</button>
+      <button id="btn-save-global" class="btn-icon btn-icon-accent" title="Salvar">↑</button>
+    </div>
   </div>
 
   <div class="tabs">
@@ -397,7 +400,6 @@ header h1 em{color:var(--accent);font-style:normal}
         <button class="nav-btn" id="next-w">→</button>
         <button class="btn-compact" id="btn-compact" title="Modo compacto">⊞</button>
         <button class="btn-icon" id="btn-copy-week" title="Repetir semana anterior" style="background:var(--orange);border-color:var(--orange);color:#fff">↩</button>
-        <button class="btn-icon btn-icon-accent" id="btn-save" title="Salvar">↑</button>
       </div>
       <div class="days-grid" id="days-grid"></div>
 
@@ -418,7 +420,6 @@ header h1 em{color:var(--accent);font-style:normal}
         <span class="shop-prog" id="shop-prog"></span>
         <button class="btn-icon" id="btn-clr" title="Limpar marcados">🗑</button>
         <button class="btn-icon" id="btn-print" title="Imprimir cardápio">🖨</button>
-        <button class="btn-icon btn-icon-accent" id="btn-save-shop" title="Salvar">↑</button>
       </div>
       <div id="shop-list"><p class="empty">lista vazia</p></div>
       <hr class="form-divider">
@@ -529,13 +530,13 @@ const SECOES = ['Mercado', 'Feira']; // duas seções fixas
 const DEFAULT_CATS_PRATOS  = ['Básicos','Massas','Sopas','Saladas','Assados','Lanches','Acompanhamentos','Doces'];
 
 const DAYS = [
+  {key:'sab',label:'Sábado',   ini:'S'},
   {key:'dom',label:'Domingo',  ini:'D'},
   {key:'seg',label:'Segunda',  ini:'S'},
   {key:'ter',label:'Terça',    ini:'T'},
   {key:'qua',label:'Quarta',   ini:'Q'},
   {key:'qui',label:'Quinta',   ini:'Q'},
   {key:'sex',label:'Sexta',    ini:'S'},
-  {key:'sab',label:'Sábado',   ini:'S'},
 ];
 
 const PRATOS_INICIAIS = [
@@ -566,7 +567,14 @@ const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>
 function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2); }
 function isoWeek(d){ const t=new Date(Date.UTC(d.getFullYear(),d.getMonth(),d.getDate())); t.setUTCDate(t.getUTCDate()+4-(t.getUTCDay()||7)); return Math.ceil(((t-new Date(Date.UTC(t.getUTCFullYear(),0,1)))/86400000+1)/7); }
 function weekKey(off=weekOffset){ const d=new Date(); d.setDate(d.getDate()-d.getDay()+off*7); return `${d.getFullYear()}-W${String(isoWeek(d)).padStart(2,'0')}`; }
-function weekDates(off=weekOffset){ const d=new Date(),sun=new Date(d); sun.setDate(d.getDate()-d.getDay()+off*7); return DAYS.map((_,i)=>{const dd=new Date(sun);dd.setDate(sun.getDate()+i);return dd;}); }
+function weekDates(off=weekOffset){
+  const d=new Date(), sat=new Date(d);
+  // último sábado = hoje - (diasDesdeSegunda+1) ... mais simples: domingo é d.getDay()=0, sábado é 6
+  const dayOfWeek=d.getDay(); // 0=dom,1=seg,...,6=sab
+  const daysFromSat = dayOfWeek===6 ? 0 : dayOfWeek+1; // quantos dias desde o último sábado
+  sat.setDate(d.getDate() - daysFromSat + off*7);
+  return DAYS.map((_,i)=>{ const dd=new Date(sat); dd.setDate(sat.getDate()+i); return dd; });
+}
 const fmtD = d => d.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'});
 function setDot(cls,msg){ document.getElementById('dot-gist').className='dot '+cls; document.getElementById('st-gist').textContent=msg; }
 
@@ -592,7 +600,15 @@ async function gistLoad(){
     gistFileName=file.filename;
     const p=JSON.parse(file.content);
     state.cardapios   = p.cardapios   || {};
-    state.compras     = p.compras     || {};
+    // migração: compras era objeto por semana, agora é array global
+    if(Array.isArray(p.compras)){
+      state.compras = p.compras;
+    } else if(p.compras && typeof p.compras==='object'){
+      // achata todas as semanas num array único
+      state.compras = Object.values(p.compras).flat();
+    } else {
+      state.compras = [];
+    }
     state.pratos      = (p.pratos&&p.pratos.length) ? p.pratos : PRATOS_INICIAIS.map(x=>({...x,id:uid()}));
     state.cats_pratos  = (p.cats_pratos&&p.cats_pratos.length)   ? p.cats_pratos  : [...DEFAULT_CATS_PRATOS];
     state.item_history = p.item_history || [];
@@ -616,19 +632,21 @@ async function gistLoad(){
     setDot('err',`erro: ${e.message}`);
     if(!state.pratos.length)       state.pratos      = PRATOS_INICIAIS.map(x=>({...x,id:uid()}));
     if(!state.cats_pratos.length)  state.cats_pratos  = [...DEFAULT_CATS_PRATOS];
+    if(!Array.isArray(state.compras)) state.compras   = [];
   }
 }
 
 async function gistSave(){
   state.last_updated=new Date().toISOString();
-  document.querySelectorAll('.btn-save').forEach(b=>b.disabled=true);
+  const saveBtn=document.getElementById('btn-save-global');
+  if(saveBtn) saveBtn.disabled=true;
   setDot('spin','salvando...');
   try{
     const r=await fetch(`https://api.github.com/gists/${GIST_ID}`,{method:'PATCH',headers:{Authorization:`token ${GIST_TOKEN}`,'Content-Type':'application/json'},body:JSON.stringify({files:{[gistFileName]:{content:JSON.stringify(state,null,2)}}})});
     if(!r.ok) throw new Error('HTTP '+r.status);
     setDot('ok','salvo ✓'); renderLastUpdated();
   }catch(e){ setDot('err',`erro: ${e.message}`); alert('Erro ao salvar: '+e.message); }
-  document.querySelectorAll('.btn-save').forEach(b=>b.disabled=false);
+  if(saveBtn) saveBtn.disabled=false;
 }
 
 // ── Autosave com debounce de 60s ───────────
@@ -642,8 +660,8 @@ function scheduleAutosave(){
 // ── State helpers ──────────────────────────
 const getCardapio = ()=>state.cardapios[weekKey()]||{};
 const saveCardapio= c=>{ state.cardapios[weekKey()]=c; scheduleAutosave(); };
-const getCompras  = ()=>state.compras[weekKey()]||[];
-const saveCompras = c=>{ state.compras[weekKey()]=c; scheduleAutosave(); };
+const getCompras  = ()=>Array.isArray(state.compras) ? state.compras : [];
+const saveCompras = c=>{ state.compras=c; scheduleAutosave(); };
 
 // ── Render: Cardápio ───────────────────────
 let compactMode = localStorage.getItem('compact_mode')==='1';
@@ -1213,8 +1231,7 @@ document.getElementById('btn-compact').onclick=()=>{
 };
 document.getElementById('prev-w').onclick=()=>{weekOffset--;renderDays();};
 document.getElementById('next-w').onclick=()=>{weekOffset++;renderDays();};
-document.getElementById('btn-save').onclick=()=>{ clearTimeout(autosaveTimer); gistSave(); };
-document.getElementById('btn-save-shop').onclick=()=>{ clearTimeout(autosaveTimer); gistSave(); };
+document.getElementById('btn-save-global').onclick=()=>{ clearTimeout(autosaveTimer); gistSave(); };
 
 // Tenta salvar ao fechar/sair do app
 window.addEventListener('beforeunload', ()=>{
