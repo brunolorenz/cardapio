@@ -395,9 +395,7 @@ header h1 em{color:var(--accent);font-style:normal}
   <div id="panel-cardapio" class="panel active">
     <div class="section">
       <div class="week-bar">
-        <button class="nav-btn" id="prev-w">←</button>
         <span id="week-label"></span>
-        <button class="nav-btn" id="next-w">→</button>
         <button class="btn-compact" id="btn-compact" title="Modo compacto">⊞</button>
         <button class="btn-icon" id="btn-copy-week" title="Repetir semana anterior" style="background:var(--orange);border-color:var(--orange);color:#fff">↩</button>
       </div>
@@ -523,7 +521,6 @@ function clearConfig(){ localStorage.removeItem('cfg_gist_id'); localStorage.rem
 // ── State ───────────────────────────────────
 let state = {cardapios:{}, compras:{}, pratos:[], cats_pratos:[], item_history:[], last_updated:null};
 let gistFileName = 'cardapio-data.json';
-let weekOffset = 0;
 let editingPratoId = null;
 
 const SECOES = ['Mercado', 'Feira']; // duas seções fixas
@@ -565,14 +562,22 @@ const PRATOS_INICIAIS = [
 // ── Utils ───────────────────────────────────
 const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2); }
-function isoWeek(d){ const t=new Date(Date.UTC(d.getFullYear(),d.getMonth(),d.getDate())); t.setUTCDate(t.getUTCDate()+4-(t.getUTCDay()||7)); return Math.ceil(((t-new Date(Date.UTC(t.getUTCFullYear(),0,1)))/86400000+1)/7); }
-function weekKey(off=weekOffset){ const d=new Date(); d.setDate(d.getDate()-d.getDay()+off*7); return `${d.getFullYear()}-W${String(isoWeek(d)).padStart(2,'0')}`; }
-function weekDates(off=weekOffset){
-  const d=new Date(), sat=new Date(d);
-  // último sábado = hoje - (diasDesdeSegunda+1) ... mais simples: domingo é d.getDay()=0, sábado é 6
-  const dayOfWeek=d.getDay(); // 0=dom,1=seg,...,6=sab
-  const daysFromSat = dayOfWeek===6 ? 0 : dayOfWeek+1; // quantos dias desde o último sábado
-  sat.setDate(d.getDate() - daysFromSat + off*7);
+// ── Chave de semana baseada no sábado ──────
+// Retorna 'YYYY-MM-DD' do sábado que inicia a semana atual (ou anterior com off=-1)
+function getSaturday(off=0){
+  const d=new Date();
+  const dow=d.getDay(); // 0=dom … 6=sab
+  const daysFromSat = dow===6 ? 0 : dow+1;
+  d.setDate(d.getDate() - daysFromSat + off*7);
+  d.setHours(0,0,0,0);
+  return d;
+}
+function weekKey(off=0){
+  const sat=getSaturday(off);
+  return sat.toISOString().slice(0,10); // 'YYYY-MM-DD'
+}
+function weekDates(off=0){
+  const sat=getSaturday(off);
   return DAYS.map((_,i)=>{ const dd=new Date(sat); dd.setDate(sat.getDate()+i); return dd; });
 }
 const fmtD = d => d.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'});
@@ -667,9 +672,9 @@ const saveCompras = c=>{ state.compras=c; scheduleAutosave(); };
 let compactMode = localStorage.getItem('compact_mode')==='1';
 
 function renderDays(){
-  const dates=weekDates(), off=weekOffset;
-  const tag=off===0?'esta semana':off===1?'próx. semana':off===-1?'sem. passada':'';
-  document.getElementById('week-label').textContent=(tag?tag+' · ':'')+fmtD(dates[0])+'–'+fmtD(dates[6]);
+  const dates=weekDates();
+  document.getElementById('week-label').textContent=
+    fmtD(dates[0])+'–'+fmtD(dates[6]);
   const cardapio=getCardapio(), grid=document.getElementById('days-grid');
   grid.className='days-grid'+(compactMode?' compact':'');
   document.getElementById('btn-compact').classList.toggle('active',compactMode);
@@ -720,28 +725,26 @@ function rmMeal(dk,slot){
 // ── History ─────────────────────────────────
 function renderHistory(){
   const el=document.getElementById('history-panel'); if(!el)return;
-  const weeks=[];
-  for(let i=1;i<=4;i++){
-    const key=weekKey(-i), c=state.cardapios[key];
-    if(c && Object.keys(c).length) weeks.push({off:-i,key,cardapio:c});
+  const prevKey=weekKey(-1);
+  const prev=state.cardapios[prevKey];
+  if(!prev||!Object.keys(prev).length){
+    el.innerHTML='<p class="empty">Nenhum cardápio registrado na semana anterior.</p>';
+    return;
   }
-  if(!weeks.length){el.innerHTML='<p class="empty">Nenhuma semana anterior registrada ainda.</p>';return;}
-  el.innerHTML=weeks.map(w=>{
-    const dates=weekDates(w.off);
-    const label=fmtD(dates[0])+'–'+fmtD(dates[6]);
-    const daysHTML=DAYS.map((day,i)=>{
-      const slots=w.cardapio[day.key]||{};
-      const meals=[slots.almoco?.nome, slots.janta?.nome, slots.extra?.nome].filter(Boolean);
-      if(!meals.length) return '';
-      return `<div class="history-day"><span class="history-day-name">${esc(day.label.slice(0,3))}</span><span class="history-meals">${meals.map(esc).join(' · ')}</span></div>`;
-    }).join('');
-    return `<div class="history-week"><div class="history-week-label">${label}</div>${daysHTML||'<p class="empty">sem registros</p>'}</div>`;
+  const dates=weekDates(-1);
+  const label=fmtD(dates[0])+'–'+fmtD(dates[6]);
+  const daysHTML=DAYS.map((day,i)=>{
+    const slots=prev[day.key]||{};
+    const meals=[slots.almoco?.nome,slots.janta?.nome,slots.extra?.nome].filter(Boolean);
+    if(!meals.length) return '';
+    return `<div class="history-day"><span class="history-day-name">${esc(day.label.slice(0,3))}</span><span class="history-meals">${meals.map(esc).join(' · ')}</span></div>`;
   }).join('');
+  el.innerHTML=`<div class="history-week"><div class="history-week-label">${label}</div>${daysHTML||'<p class="empty">sem registros</p>'}</div>`;
 }
 
 // ── Copy previous week ─────────────────────
 document.getElementById('btn-copy-week').onclick=()=>{
-  const prevKey=weekKey(weekOffset-1), prev=state.cardapios[prevKey];
+  const prevKey=weekKey(-1), prev=state.cardapios[prevKey];
   if(!prev||!Object.keys(prev).length){alert('Semana anterior sem cardápio registrado.');return;}
   if(!confirm('Copiar o cardápio da semana anterior para esta semana?')) return;
   const copy={};
@@ -841,11 +844,12 @@ function addShop(nome, qty='', cat='Mercado'){
   if(!nome.trim()) return;
   const n=nome.trim();
   state.item_history=state.item_history||[];
-  state.item_history=state.item_history.filter(x=>x.toLowerCase()!==n.toLowerCase());
-  state.item_history.unshift(n);
-  if(state.item_history.length>30) state.item_history=state.item_history.slice(0,30);
+  // salva normalizado em lowercase — sem case sensitive
+  const nNorm=n.toLowerCase();
+  state.item_history=state.item_history.filter(x=>x.toLowerCase()!==nNorm);
+  state.item_history.unshift(nNorm); // histórico completo, sem limite
   const s=getCompras();
-  s.push({id:uid(), nome:n, qty, cat, checked:false});
+  s.push({id:uid(), nome:capitalize(n), qty, cat, checked:false});
   saveCompras(s);
   renderShop();
 }
@@ -914,12 +918,17 @@ document.getElementById('btn-gen').onclick=()=>{
 };
 
 // ── Recents ─────────────────────────────────
+function capitalize(s){ return s.charAt(0).toUpperCase()+s.slice(1); }
+
 function renderRecents(q){
   const el=document.getElementById('ni-recents'); if(!el)return;
+  // só mostra sugestões quando há input
+  if(!q.trim()){ el.innerHTML=''; return; }
   const hist=state.item_history||[];
-  const filtered=q ? hist.filter(x=>x.toLowerCase().includes(q.toLowerCase())) : hist.slice(0,10);
-  if(!filtered.length){el.innerHTML='';return;}
-  el.innerHTML=filtered.map(x=>`<span class="recent-tag" onclick="quickAddRecent('${esc(x)}')">${esc(x)}</span>`).join('');
+  const qLow=q.toLowerCase();
+  const filtered=hist.filter(x=>x.includes(qLow) && x!==qLow).slice(0,8);
+  if(!filtered.length){ el.innerHTML=''; return; }
+  el.innerHTML=filtered.map(x=>`<span class="recent-tag" onclick="quickAddRecent('${esc(x)}')">${esc(capitalize(x))}</span>`).join('');
 }
 function quickAddRecent(nome){
   addShop(nome);
@@ -927,7 +936,7 @@ function quickAddRecent(nome){
   renderRecents('');
 }
 document.getElementById('ni-name').addEventListener('input',e=>renderRecents(e.target.value));
-document.getElementById('ni-name').addEventListener('focus',()=>renderRecents(document.getElementById('ni-name').value));
+// ao focar: não mostra sugestões se campo vazio
 
 // ── Add shop ────────────────────────────────
 document.getElementById('btn-add-shop').onclick=()=>{
@@ -1229,8 +1238,6 @@ document.getElementById('btn-compact').onclick=()=>{
   localStorage.setItem('compact_mode', compactMode?'1':'0');
   renderDays();
 };
-document.getElementById('prev-w').onclick=()=>{weekOffset--;renderDays();};
-document.getElementById('next-w').onclick=()=>{weekOffset++;renderDays();};
 document.getElementById('btn-save-global').onclick=()=>{ clearTimeout(autosaveTimer); gistSave(); };
 
 // Tenta salvar ao fechar/sair do app
@@ -1249,8 +1256,7 @@ document.addEventListener('visibilitychange', ()=>{
 // ── Print ───────────────────────────────────
 function buildPrintSheet(){
   const cardapio=getCardapio(), dates=weekDates();
-  const tag=weekOffset===0?'Esta semana':weekOffset===1?'Próxima semana':weekOffset===-1?'Semana passada':'';
-  const periodo=(tag?tag+' · ':'')+fmtD(dates[0])+' – '+fmtD(dates[6]);
+  const periodo='Semana de '+fmtD(dates[0])+' – '+fmtD(dates[6]);
   const diasHTML=DAYS.map((day,i)=>{
     const slots=cardapio[day.key]||{};
     const almoco=slots.almoco?esc(slots.almoco.nome):'<span class="p-empty">—</span>';
