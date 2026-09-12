@@ -271,6 +271,23 @@ header h1 em{color:var(--accent);font-style:normal}
 .recent-tag{background:var(--raised);border:1.5px solid var(--border);border-radius:20px;padding:.2rem .65rem;font-size:.75rem;font-weight:500;color:var(--ink2);cursor:pointer;transition:border-color .15s}
 .recent-tag:active{border-color:var(--accent);color:var(--accent)}
 
+/* Ingredient builder */
+.ing-list{display:flex;flex-direction:column;gap:.35rem;margin-bottom:.75rem}
+.ing-chip{display:flex;align-items:center;gap:.5rem;background:var(--raised);border:1.5px solid var(--border);border-radius:var(--r-sm);padding:.4rem .65rem;font-size:.82rem}
+.ing-chip-name{flex:1;font-weight:500}
+.ing-chip-qty{color:var(--ink3);font-size:.75rem;background:var(--surface);border-radius:3px;padding:.1rem .35rem;white-space:nowrap}
+.ing-chip-cat{font-size:.65rem;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--ink3);padding:.1rem .4rem;background:var(--surface);border-radius:3px;white-space:nowrap}
+.ing-chip-del{background:none;border:none;cursor:pointer;color:var(--ink3);font-size:.95rem;padding:0;margin-left:auto;width:22px;height:22px;display:flex;align-items:center;justify-content:center;border-radius:50%;flex-shrink:0;transition:color .12s,background .12s}
+.ing-chip-del:active{color:var(--danger);background:var(--danger-bg)}
+.ing-add-row{display:grid;grid-template-columns:1fr 80px 32px;gap:.4rem;align-items:center}
+.ing-add-row input{background:var(--surface);border:1.5px solid var(--border);border-radius:var(--r-sm);font-family:'Plus Jakarta Sans',sans-serif;font-size:.85rem;color:var(--ink);padding:.5rem .65rem;outline:none;width:100%}
+.ing-add-row input:focus{border-color:var(--accent)}
+.ing-add-row input::placeholder{color:var(--ink3)}
+.ing-secao-row{display:grid;grid-template-columns:1fr 1fr;gap:.4rem;margin:.5rem 0}
+.ing-secao-btn{background:var(--raised);border:1.5px solid var(--border);border-radius:var(--r-sm);font-family:'Plus Jakarta Sans',sans-serif;font-size:.8rem;font-weight:600;padding:.45rem;cursor:pointer;color:var(--ink3);transition:all .15s;text-align:center}
+.ing-secao-btn.active{background:var(--accent-bg);border-color:var(--accent);color:var(--accent)}
+.ing-empty{font-size:.78rem;color:var(--ink3);font-style:italic;padding:.25rem 0}
+
 /* Inline edit */
 .si-edit-form{display:flex;flex-direction:column;gap:.4rem;flex:1;padding:.2rem 0}
 .si-edit-row{display:flex;gap:.4rem}
@@ -446,11 +463,27 @@ header h1 em{color:var(--accent);font-style:normal}
         <h3 id="prato-form-title">Novo prato</h3>
         <div class="field"><label>Nome</label><input id="pf-nome" placeholder="ex: Sopa de abóbora"/></div>
         <div class="field"><label>Categoria</label><select id="pf-cat"></select></div>
+
         <div class="field">
           <label>Ingredientes</label>
-          <div class="hint">Um por linha: <strong>nome, quantidade, categoria</strong><br>Ex: <code>tomate, 2 un, Hortifrúti</code></div>
-          <textarea id="pf-ings" placeholder="tomate, 2 un, Hortifrúti&#10;alho, 3 dentes, Hortifrúti"></textarea>
+          <div class="ing-list" id="pf-ing-list">
+            <p class="ing-empty">nenhum ingrediente ainda</p>
+          </div>
+
+          <!-- seção: feira ou mercado -->
+          <div class="ing-secao-row">
+            <button class="ing-secao-btn active" id="ing-sec-feira" onclick="setIngSecao('Feira')">🧺 Feira</button>
+            <button class="ing-secao-btn" id="ing-sec-mercado" onclick="setIngSecao('Mercado')">🛒 Mercado</button>
+          </div>
+
+          <!-- linha de adição -->
+          <div class="ing-add-row">
+            <input id="ing-nome" placeholder="ingrediente..." autocomplete="off"/>
+            <input id="ing-qty"  placeholder="qtd"/>
+            <button class="btn-icon btn-icon-accent" id="btn-add-ing" title="Adicionar ingrediente">+</button>
+          </div>
         </div>
+
         <button class="btn-full" id="btn-save-prato">+ Salvar prato</button>
         <div class="side-foot" id="prato-form-foot" style="display:none">
           <button class="btn-ghost" id="btn-cancel-edit">Cancelar edição</button>
@@ -1123,27 +1156,65 @@ function renderPratos(){
   }).join('');
 }
 
-function parseIngredientes(txt){ return txt.trim().split('\n').filter(l=>l.trim()).map(l=>{const p=l.split(',').map(s=>s.trim());return{nome:p[0]||'',qty:p[1]||'',cat:p[2]||'Outros'};}).filter(i=>i.nome); }
-function formatIngredientes(ings){ return (ings||[]).map(i=>`${i.nome}, ${i.qty}, ${i.cat}`).join('\n'); }
+// ── Prato form: ingredient builder ─────────
+let pfIngs = [];
+let pfIngSecao = 'Feira';
+
+function setIngSecao(secao){
+  pfIngSecao=secao;
+  document.getElementById('ing-sec-feira').classList.toggle('active',secao==='Feira');
+  document.getElementById('ing-sec-mercado').classList.toggle('active',secao==='Mercado');
+}
+
+function renderPfIngList(){
+  const el=document.getElementById('pf-ing-list'); if(!el)return;
+  if(!pfIngs.length){ el.innerHTML='<p class="ing-empty">nenhum ingrediente ainda</p>'; return; }
+  el.innerHTML=pfIngs.map((ing,i)=>`
+    <div class="ing-chip">
+      <span class="ing-chip-name">${esc(capitalize(ing.nome))}</span>
+      ${ing.qty?`<span class="ing-chip-qty">${esc(ing.qty)}</span>`:''}
+      <span class="ing-chip-cat">${esc(ing.cat)}</span>
+      <button class="ing-chip-del" onclick="removeIng(${i})">✕</button>
+    </div>`).join('');
+}
+
+function removeIng(i){ pfIngs.splice(i,1); renderPfIngList(); }
+
+function addIng(){
+  const nome=document.getElementById('ing-nome').value.trim();
+  if(!nome) return;
+  const qty=document.getElementById('ing-qty').value.trim();
+  pfIngs.push({nome,qty,cat:pfIngSecao});
+  document.getElementById('ing-nome').value='';
+  document.getElementById('ing-qty').value='';
+  document.getElementById('ing-nome').focus();
+  renderPfIngList();
+}
+
+function clearPfForm(){
+  document.getElementById('pf-nome').value='';
+  pfIngs=[]; pfIngSecao='Feira'; setIngSecao('Feira'); renderPfIngList();
+  document.getElementById('prato-form-title').textContent='Novo prato';
+  document.getElementById('prato-form-foot').style.display='none';
+  document.getElementById('btn-save-prato').textContent='+ Salvar prato';
+}
+
+document.getElementById('btn-add-ing').onclick=addIng;
+document.getElementById('ing-nome').addEventListener('keydown',e=>{ if(e.key==='Enter'){e.preventDefault();addIng();} });
+document.getElementById('ing-qty').addEventListener('keydown',e=>{ if(e.key==='Enter'){e.preventDefault();addIng();} });
 
 document.getElementById('btn-save-prato').onclick=()=>{
   const nome=document.getElementById('pf-nome').value.trim();
-  const cat =document.getElementById('pf-cat').value;
-  const ings=parseIngredientes(document.getElementById('pf-ings').value);
+  const cat=document.getElementById('pf-cat').value;
   if(!nome){alert('Nome do prato é obrigatório.');return;}
   if(editingPratoId){
     const p=state.pratos.find(x=>x.id===editingPratoId);
-    if(p){p.nome=nome;p.categoria=cat;p.ingredientes=ings;}
+    if(p){p.nome=nome;p.categoria=cat;p.ingredientes=[...pfIngs];}
     editingPratoId=null;
-    document.getElementById('prato-form-title').textContent='Novo prato';
-    document.getElementById('prato-form-foot').style.display='none';
-    document.getElementById('btn-save-prato').textContent='+ Salvar prato';
   } else {
-    state.pratos.push({id:uid(),nome,categoria:cat,ingredientes:ings});
+    state.pratos.push({id:uid(),nome,categoria:cat,ingredientes:[...pfIngs]});
   }
-  document.getElementById('pf-nome').value='';
-  document.getElementById('pf-ings').value='';
-  renderPratos(); populateSelects(); gistSave();
+  clearPfForm(); renderPratos(); populateSelects(); gistSave();
 };
 
 function editPrato(id){
@@ -1151,7 +1222,11 @@ function editPrato(id){
   editingPratoId=id;
   document.getElementById('pf-nome').value=p.nome;
   document.getElementById('pf-cat').value=p.categoria;
-  document.getElementById('pf-ings').value=formatIngredientes(p.ingredientes);
+  pfIngs=[...(p.ingredientes||[]).map(i=>({...i}))];
+  renderPfIngList();
+  const firstCat=(pfIngs[0]?.cat)||'Feira';
+  pfIngSecao=SECOES.includes(firstCat)?firstCat:'Feira';
+  setIngSecao(pfIngSecao);
   document.getElementById('prato-form-title').textContent='Editar prato';
   document.getElementById('prato-form-foot').style.display='flex';
   document.getElementById('btn-save-prato').textContent='✓ Salvar alterações';
@@ -1164,17 +1239,12 @@ function deletePrato(id){
   const p=state.pratos.find(x=>x.id===id); if(!p)return;
   if(!confirm(`Excluir "${p.nome}"?`))return;
   state.pratos=state.pratos.filter(x=>x.id!==id);
-  if(editingPratoId===id){ editingPratoId=null; document.getElementById('pf-nome').value=''; document.getElementById('pf-ings').value=''; document.getElementById('prato-form-title').textContent='Novo prato'; document.getElementById('prato-form-foot').style.display='none'; document.getElementById('btn-save-prato').textContent='+ Salvar prato'; }
+  if(editingPratoId===id){editingPratoId=null;clearPfForm();}
   renderPratos(); populateSelects(); gistSave();
 }
 
 document.getElementById('btn-cancel-edit').onclick=()=>{
-  editingPratoId=null;
-  document.getElementById('pf-nome').value=''; document.getElementById('pf-ings').value='';
-  document.getElementById('prato-form-title').textContent='Novo prato';
-  document.getElementById('prato-form-foot').style.display='none';
-  document.getElementById('btn-save-prato').textContent='+ Salvar prato';
-  renderPratos();
+  editingPratoId=null; clearPfForm(); renderPratos();
 };
 document.getElementById('prato-filter').oninput=renderPratos;
 document.getElementById('prato-cat-filter').onchange=renderPratos;
